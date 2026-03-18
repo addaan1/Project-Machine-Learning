@@ -156,7 +156,12 @@ def load_bi_rate() -> pd.DataFrame:
     print("  [3/7] BI Rate (Data Inflasi BI)...", end=" ")
     path = os.path.join(BASE, "BI Rate (Data Inflasi)", "Data Inflasi.xlsx")
     try:
-        df = pd.read_excel(path, skiprows=3)
+        # Header sebenarnya ada di baris ke-3 (0-indexed), skiprows=3 lalu header=0
+        df = pd.read_excel(path, skiprows=3, header=0)
+        # Jika header terbaca sebagai data (kolom unnamed), header ada di baris data pertama
+        if "Periode" not in df.columns:
+            df.columns = df.iloc[0]
+            df = df.iloc[1:].reset_index(drop=True)
         df = df[["Periode", "Data Inflasi"]].dropna()
         df["Data Inflasi"] = df["Data Inflasi"].apply(_to_float_id)
         df["Tanggal"] = df["Periode"].apply(_parse_indo_date)
@@ -235,10 +240,13 @@ def load_pengeluaran() -> pd.DataFrame:
             df = df[~df["Provinsi"].str.strip().str.upper()
                     .isin(["PROVINSI", ""])]
             df["Provinsi"] = df["Provinsi"].str.strip().str.title()
-            # Asumsi urutan kolom: [Provinsi, Makanan, Bukan Makanan, Jumlah/Total]
-            df["Pengeluaran_Makanan"] = df[df.columns[1]].apply(_to_float_id)
-            df["Pengeluaran_Bukan_Makanan"] = df[df.columns[2]].apply(_to_float_id)
-            df["Total_Pengeluaran"] = df[df.columns[-1]].apply(_to_float_id)
+            col_makanan = df.columns[1]
+            col_bukan_makanan = df.columns[2]
+            col_jumlah = df.columns[3]  # Karena CSV standar ada 4 kolom
+            
+            df["Pengeluaran_Makanan"] = df[col_makanan].apply(_to_float_id)
+            df["Pengeluaran_Bukan_Makanan"] = df[col_bukan_makanan].apply(_to_float_id)
+            df["Total_Pengeluaran"] = df[col_jumlah].apply(_to_float_id)
             df["Tahun"] = tahun
             records.append(df[["Provinsi", "Pengeluaran_Makanan", "Pengeluaran_Bukan_Makanan", "Total_Pengeluaran", "Tahun"]].dropna())
         except Exception:
