@@ -32,12 +32,13 @@ Project-Machine-Learning/
 │   ├── Tingkat Pengangguran Terbuka.../
 │   ├── Upah Minimum Provinsi/
 │   └── processed/
-│       ├── inflasi_ts.csv        ← input Model 1 (LSTM)
-│       └── daya_beli_panel.csv   ← input Model 2 (Regresi)
+│       ├── clean_inflasi_ts.csv  ← data mentah join untuk LSTM
+│       └── clean_daya_beli.csv   ← data panel daya beli mentah
 ├── dashboard/                    ← Django project
 │   └── predictions/              ← Django app
 ├── explore_datasets.py           ← eksplorasi & visualisasi awal
-├── preprocessing.py              ← pipeline pembersihan data
+├── preprocessing.py              ← script join dataset (menghasilkan clean_*.csv)
+├── data_pipeline.py              ← ANTI-LEAKAGE PIPELINE (split, scale, log, lag)
 ├── requirements.txt
 └── README.md
 ```
@@ -65,77 +66,57 @@ Project-Machine-Learning/
 
 ---
 
-## 🔧 Preprocessing Pipeline
+## 🔧 Preprocessing & Data Pipeline (Anti-Leakage)
 
-Sebelum masuk ke modeling, semua dataset mentah diproses menggunakan **`preprocessing.py`**. Berikut penjelasan tiap tahapan:
+Proses pengolahan data dibagi menjadi dua tahapan ketat untuk **mencegah Data Leakage** dari *testing set* ke *training set*:
 
-### Masalah yang Ditemukan di Data Mentah
-
-| Masalah | Contoh | Solusi |
-|---------|--------|--------|
-| Format angka Indonesia | `15.500,00` | Konversi: hapus titik ribuan, ganti koma → titik |
-| Tanda persen di teks | `"2,5%"` | Strip `%`, konversi ke `float` |
-| Tanggal bahasa Indonesia | `"Februari 2026"` | Parse manual dengan kamus bulan |
-| Data harian perlu dibulatkan | USD/IDR harian | Resample ke rata-rata bulanan (`resample('MS').mean()`) |
-| Perbedaan frekuensi antar dataset | Tahunan vs Bulanan | Agregasi inflasi ke rata-rata tahunan untuk model regresi |
-| NaN pada data IHK post-2019 | IHK hanya tersedia 2005–2019 | Dibiarkan NaN (di-handle LSTM dengan masking) |
-| Baris non-data di header BPS | 3 baris judul tabel | `skiprows=3` saat membaca CSV |
+1. **`preprocessing.py`**: Hanya melakukan pembersihan teks dan penggabungan secara waktu (join).
+2. **`data_pipeline.py`**: Melakukan Train/Val/Test Split *TERLEBIH DAHULU*, kemudian melakukan *Scaling*, Interpolasi, Log Transform, dan pembuatan fitur *Lag/Windows*.
 
 ---
 
-### Output 1 — `datasets/processed/inflasi_ts.csv` (untuk Model 1 LSTM)
+### Output 1 — `datasets/processed/clean_inflasi_ts.csv` (Raw untuk LSTM)
 
-**Alur:**
-```
+**Alur `preprocessing.py`:**
+```text
 Inflasi Bulanan (22 file CSV, 2005–2026)
   → Parse tanggal bahasa Indonesia
-  → Filter baris "INDONESIA"
   → Gabungkan jadi 1 kolom: [Tanggal, Inflasi_MoM]
   → Join IHK (NaN untuk data setelah 2019)
   → Join BI Rate (bulanan)
-  → Join USD/IDR (resample harian → bulanan, lalu ffill)
-  → Buat lag features: Inflasi_MoM_lag1 s/d lag12
+  → Join USD/IDR (resample harian → bulanan)
   → Tambah kolom Bulan dan Tahun
-  → Drop 12 baris pertama (lag belum terisi)
 ```
-
-**Hasil:** `242 baris × 18 kolom`
+*(Catatan: Fitur lag 1-12 dan scaling akan digenerate otomatis di memori oleh `data_pipeline.py` spesifik pada data Train untuk mencegah leakage)*.
 
 | Kolom | Keterangan |
 |-------|-----------|
-| `Tanggal` | Periode bulanan (2006–2026) |
+| `Tanggal` | Periode bulanan (2005–2026) |
 | `Inflasi_MoM` | Target prediksi (%) |
 | `IHK` | Indeks harga konsumen (NaN setelah 2019) |
 | `USD_IDR` | Rata-rata kurs bulanan (Rp) |
 | `BI_Rate` | Suku bunga acuan BI (%) |
-| `Inflasi_MoM_lag1` … `lag12` | Nilai inflasi 1–12 bulan sebelumnya |
 | `Bulan`, `Tahun` | Fitur siklus waktu |
 
 ---
 
-### Output 2 — `datasets/processed/daya_beli_panel.csv` (untuk Model 2 Regresi)
+### Output 2 — `datasets/processed/clean_daya_beli.csv` (Raw untuk Regresi)
 
-**Alur:**
-```
+**Alur `preprocessing.py`:**
+```text
 Pengeluaran per Kapita (per provinsi, 2017–2025)
   → Join UMP per provinsi (2021–2025)
   → Join Tingkat Pengangguran Terbuka per provinsi (2020–2025)
   → Join Inflasi rata-rata tahunan (dari inflasi bulanan)
   → Filter tahun overlap: 2021–2025
-  → Drop baris dengan kolom utama kosong
-  → Transformasi log: log(Total_Pengeluaran), log(UMP)
 ```
-
-**Hasil:** `177 baris × 8 kolom` (38 provinsi × 5 tahun = 190, minus 13 data Papua kosong)
 
 | Kolom | Keterangan |
 |-------|-----------|
 | `Provinsi` | 38 provinsi Indonesia |
 | `Tahun` | 2021–2025 |
 | `Total_Pengeluaran` | Pengeluaran per kapita (Rp/bulan) — **Target Y** |
-| `log_Total_Pengeluaran` | Transformasi log untuk normalisasi |
 | `UMP` | Upah minimum (Rp/bulan) |
-| `log_UMP` | Transformasi log untuk normalisasi |
 | `TPT` | Tingkat Pengangguran Terbuka (%) |
 | `Inflasi_Rata_Tahunan` | Rata-rata inflasi MoM per tahun (%) |
 
@@ -144,12 +125,12 @@ Pengeluaran per Kapita (per provinsi, 2017–2025)
 ## 🤖 Model Machine Learning
 
 ### Model 1 – Forecasting Inflasi (LSTM)
-- **Input**: Sequence 12 bulan terakhir (`inflasi_ts.csv`)
+- **Input**: *Windowing sequences* 12 bulanan (`clean_inflasi_ts.csv` diproses oleh `data_pipeline.py`)
 - **Output**: Prediksi inflasi bulan berikutnya
 - **Metrik**: MAE, RMSE
 
 ### Model 2 – Dampak Inflasi terhadap Daya Beli (Regresi)
-- **Input**: Panel data provinsi (`daya_beli_panel.csv`)
+- **Input**: Panel data provinsi (`clean_daya_beli.csv` diproses oleh `data_pipeline.py`)
 - **Output**: Estimasi pengeluaran per kapita berdasarkan inflasi & variabel ekonomi lainnya
 - **Metrik**: R², MSE, koefisien regresi
 
@@ -164,12 +145,13 @@ pip install -r requirements.txt
 # 2. Eksplorasi dataset (opsional)
 python explore_datasets.py
 
-# 3. Jalankan preprocessing
+# 3. Jalankan preprocessing (Menghasilkan clean_*.csv)
 python preprocessing.py
-# → Output: datasets/processed/inflasi_ts.csv
-# → Output: datasets/processed/daya_beli_panel.csv
 
-# 4. Jalankan web dashboard
+# 4. Tes Split Pipeline AI
+python data_pipeline.py
+
+# 5. Jalankan web dashboard
 cd dashboard
 python manage.py runserver
 ```
