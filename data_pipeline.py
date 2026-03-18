@@ -94,14 +94,17 @@ def get_lstm_pipeline_data(seq_length=12):
     return (X_train, y_train), (X_val, y_val), (X_test, y_test), scaler, df
 
 
-def get_regression_pipeline_data():
+def get_regression_pipeline_data(target_col="Total_Pengeluaran"):
     """
     Pipeline untuk Model 2 (Regresi Dampak Daya Beli).
     Membaca panel daya beli mentah, di-split secara random, 
     lalu dilakukan log-transform (jika diperlukan) dan fit Scaler HANYA pada set Train.
+    
+    Argumen:
+        target_col (str): Pilihan target ("Pengeluaran_Makanan", "Pengeluaran_Bukan_Makanan", "Total_Pengeluaran")
     """
     print("\n" + "="*50)
-    print("  Regression Data Pipeline (Random Split)")
+    print(f"  Regression Pipeline (Target: {target_col})")
     print("="*50)
     
     path = os.path.join(OUT_DIR, "clean_daya_beli.csv")
@@ -110,9 +113,8 @@ def get_regression_pipeline_data():
         
     df = pd.read_csv(path)
     
-    # Imputasi sederhana jika TPT kosong (berupa mean, TETAPI idealnya pakai mean dari split train)
     # Target (Y)
-    y = df["Total_Pengeluaran"]
+    y = df[target_col]
     
     # Fitur (X)
     X = df[["UMP", "TPT", "Inflasi_Rata_Tahunan"]]
@@ -151,7 +153,10 @@ if __name__ == "__main__":
         print(f"✗ Gagal LSTM Pipeline: {e}")
         
     try:    
-        reg_data = get_regression_pipeline_data()
+        # Test default
+        reg_data = get_regression_pipeline_data(target_col="Total_Pengeluaran")
+        # Test makanan
+        reg_data_makan = get_regression_pipeline_data(target_col="Pengeluaran_Makanan")
         print("✓ Regression Pipeline OK.\n")
     except Exception as e:
         print(f"✗ Gagal Regression Pipeline: {e}")

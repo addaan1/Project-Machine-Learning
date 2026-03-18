@@ -235,11 +235,12 @@ def load_pengeluaran() -> pd.DataFrame:
             df = df[~df["Provinsi"].str.strip().str.upper()
                     .isin(["PROVINSI", ""])]
             df["Provinsi"] = df["Provinsi"].str.strip().str.title()
-            # Kolom terakhir = Total/Jumlah
-            total_col = df.columns[-1]
-            df["Total_Pengeluaran"] = df[total_col].apply(_to_float_id)
+            # Asumsi urutan kolom: [Provinsi, Makanan, Bukan Makanan, Jumlah/Total]
+            df["Pengeluaran_Makanan"] = df[df.columns[1]].apply(_to_float_id)
+            df["Pengeluaran_Bukan_Makanan"] = df[df.columns[2]].apply(_to_float_id)
+            df["Total_Pengeluaran"] = df[df.columns[-1]].apply(_to_float_id)
             df["Tahun"] = tahun
-            records.append(df[["Provinsi", "Total_Pengeluaran", "Tahun"]].dropna())
+            records.append(df[["Provinsi", "Pengeluaran_Makanan", "Pengeluaran_Bukan_Makanan", "Total_Pengeluaran", "Tahun"]].dropna())
         except Exception:
             pass
     df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
@@ -360,6 +361,8 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran, pengangguran) -> pd.DataFra
 
     # --- Kolom akhir: rapikan urutan ---
     cols_order = ["Provinsi", "Tahun",
+                  "Pengeluaran_Makanan",
+                  "Pengeluaran_Bukan_Makanan",
                   "Total_Pengeluaran",
                   "UMP",
                   "TPT",
