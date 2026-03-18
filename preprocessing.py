@@ -275,11 +275,11 @@ def load_pengangguran() -> pd.DataFrame:
 
 
 # ===========================================================================
-# BUILD OUTPUT 1: inflasi_ts.csv (untuk Model 1 – LSTM)
+# BUILD OUTPUT 1: clean_inflasi_ts.csv (Tanya rekayasa, hanya raw join)
 # ===========================================================================
 
 def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr) -> pd.DataFrame:
-    print("\n▶ Membangun inflasi_ts.csv ...")
+    print("\n▶ Membangun clean_inflasi_ts.csv ...")
 
     # Base: inflasi MoM sebagai backbone
     ts = inflasi.copy()
@@ -296,26 +296,18 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr) -> pd.DataFrame:
     if not usd_idr.empty:
         ts = ts.join(usd_idr, how="left")
 
-    # Forward-fill untuk BI Rate dan USD/IDR (jarang ada gap bermakna)
-    for col in ["BI_Rate", "USD_IDR"]:
-        if col in ts.columns:
-            ts[col] = ts[col].ffill().bfill()
+    # CATATAN REFAKTORING: 
+    # Forward-fill dan Lag Features DIHAPUS dari sini untuk mencegah DATA LEAKAGE.
+    # Seluruh imputasi dan windowing akan dilakukan di data_pipeline.py setelah Data Split.
 
-    # Tambahkan lag features (t-1 s/d t-12) untuk Inflasi MoM
-    for lag in range(1, 13):
-        ts[f"Inflasi_MoM_lag{lag}"] = ts["Inflasi_MoM"].shift(lag)
-
-    # Tambahkan fitur waktu
+    # Tambahkan fitur waktu ekstraktif (Aman dari Leakage)
     ts["Bulan"] = ts.index.month
     ts["Tahun"] = ts.index.year
-
-    # Drop baris dengan lag NaN (12 baris pertama)
-    ts = ts.dropna(subset=["Inflasi_MoM_lag12"])
 
     # Reset index agar Tanggal jadi kolom
     ts = ts.reset_index()
 
-    out_path = os.path.join(OUT_DIR, "inflasi_ts.csv")
+    out_path = os.path.join(OUT_DIR, "clean_inflasi_ts.csv")
     ts.to_csv(out_path, index=False)
 
     print(f"   ✓ {len(ts)} baris × {len(ts.columns)} kolom")
@@ -325,11 +317,11 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr) -> pd.DataFrame:
 
 
 # ===========================================================================
-# BUILD OUTPUT 2: daya_beli_panel.csv (untuk Model 2 – Regresi)
+# BUILD OUTPUT 2: clean_daya_beli.csv (Tanya rekayasa, hanya raw join)
 # ===========================================================================
 
 def build_daya_beli_panel(inflasi, ump, pengeluaran, pengangguran) -> pd.DataFrame:
-    print("\n▶ Membangun daya_beli_panel.csv ...")
+    print("\n▶ Membangun clean_daya_beli.csv ...")
 
     # --- Inflasi → rata-rata tahunan ---
     inflasi_tahunan = (inflasi.reset_index()
@@ -362,21 +354,20 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran, pengangguran) -> pd.DataFra
     key_cols = ["Total_Pengeluaran", "UMP", "Inflasi_Rata_Tahunan"]
     panel = panel.dropna(subset=key_cols)
 
-    # --- Transformasi log untuk variabel berskala besar ---
-    for col in ["Total_Pengeluaran", "UMP"]:
-        if col in panel.columns:
-            panel[f"log_{col}"] = np.log1p(panel[col])
+    # CATATAN REFAKTORING:
+    # Transformasi LOG DIHAPUS dari sini untuk mencegah DATA LEAKAGE.
+    # Transformasi log akan dipasang *setelah* train-test split di pipeline regresi.
 
     # --- Kolom akhir: rapikan urutan ---
     cols_order = ["Provinsi", "Tahun",
-                  "Total_Pengeluaran", "log_Total_Pengeluaran",
-                  "UMP", "log_UMP",
+                  "Total_Pengeluaran",
+                  "UMP",
                   "TPT",
                   "Inflasi_Rata_Tahunan"]
     cols_order = [c for c in cols_order if c in panel.columns]
     panel = panel[cols_order].sort_values(["Tahun", "Provinsi"]).reset_index(drop=True)
 
-    out_path = os.path.join(OUT_DIR, "daya_beli_panel.csv")
+    out_path = os.path.join(OUT_DIR, "clean_daya_beli.csv")
     panel.to_csv(out_path, index=False)
 
     print(f"   ✓ {len(panel)} baris × {len(panel.columns)} kolom")
@@ -422,8 +413,8 @@ def main():
     panel = build_daya_beli_panel(inflasi, ump, pengeluaran, pengangguran)
 
     # Summaries
-    print_summary(ts, "inflasi_ts.csv")
-    print_summary(panel, "daya_beli_panel.csv")
+    print_summary(ts, "clean_inflasi_ts.csv")
+    print_summary(panel, "clean_daya_beli.csv")
 
     print(f"\n{'='*60}")
     print("  ✅ Preprocessing selesai!")
