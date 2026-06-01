@@ -14,7 +14,8 @@ Sesuai instruksi:
 """))
 
 # Import
-nb.cells.append(nbf.v4.new_code_cell("""import pandas as pd
+nb.cells.append(nbf.v4.new_code_cell("""import os
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
