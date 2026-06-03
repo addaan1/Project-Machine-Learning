@@ -634,41 +634,75 @@ def load_fao_fpi() -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# [22] Rice Price Thailand 5% — World Bank Pink Sheet (CMO Historical Data)
+# [22] Semua Komoditas World Bank CMO (Palm Oil, Coal, Coffee, Wheat, dll)
 # ---------------------------------------------------------------------------
-def load_rice_thailand() -> pd.DataFrame:
-    """Rice Price Thailand 5% (USD/mt) dari World Bank Commodity Markets.
+# Mapping: nama kolom di CMO -> nama kolom di output
+CMO_COLUMNS = {
+    "Palm oil":                   "CMO_PalmOil_USD",
+    "Coal, Australian":           "CMO_Coal_AU_USD",
+    "Coal, South African **":     "CMO_Coal_SA_USD",
+    "Coffee, Robusta":            "CMO_Coffee_Robusta_USD",
+    "Coffee, Arabica":            "CMO_Coffee_Arabica_USD",
+    "Wheat, US SRW":              "CMO_Wheat_SRW_USD",
+    "Wheat, US HRW":              "CMO_Wheat_HRW_USD",
+    "Soybeans":                   "CMO_Soybeans_USD",
+    "Soybean oil":                "CMO_SoybeanOil_USD",
+    "Sugar, world":               "CMO_Sugar_USD",
+    "Rubber, TSR20 **":           "CMO_Rubber_TSR20_USD",
+    "Rubber, RSS3":               "CMO_Rubber_RSS3_USD",
+    "Cotton, A Index":            "CMO_Cotton_USD",
+    "Rice, Thai 5% ":             "CMO_Rice_Thailand_USD",
+    "Coconut oil":                "CMO_CoconutOil_USD",
+    "Groundnuts":                 "CMO_Groundnuts_USD",
+    "Fish meal":                  "CMO_FishMeal_USD",
+    "Maize":                      "CMO_Maize_USD",
+    "Tin":                        "CMO_Tin_USD",
+    "Nickel":                     "CMO_Nickel_USD",
+    "Copper":                     "CMO_Copper_USD",
+    "Aluminum":                   "CMO_Aluminum_USD",
+    "Iron ore, cfr spot":         "CMO_IronOre_USD",
+    "Natural gas, US":            "CMO_NatGas_USD",
+    "Natural gas, Europe":        "CMO_NatGas_EU_USD",
+    "Liquefied natural gas, Japan": "CMO_LNG_Japan_USD",
+}
+
+
+def load_cmo_commodities() -> pd.DataFrame:
+    """Load semua komoditas World Bank CMO (Commodity Markets) sekaligus.
     File: CMO-Historical-Data-Monthly.xlsx
-    Sheet: Monthly Prices, kolom 'Rice, Thai 5% '
+    Sheet: Monthly Prices
     Format tanggal: '1960M01', dst.
+    Output: DataFrame dengan kolom per komoditas (USD/mt atau satuan World Bank).
     """
     path = os.path.join(BASE, "international", "CMO-Historical-Data-Monthly.xlsx")
     if not os.path.exists(path):
-        print("  (file belum ada, skip)")
+        print("  (file CMO belum ada, skip)")
         return pd.DataFrame()
     try:
         df = pd.read_excel(path, sheet_name="Monthly Prices", header=4)
-        # Cari kolom tanggal dan rice
-        date_col = df.columns[0]  # 'Unnamed: 0' atau nama lain
-        rice_col = None
-        for c in df.columns:
-            if "Rice" in str(c) and "5%" in str(c):
-                rice_col = c
-                break
-        if rice_col is None:
-            print("  WARNING – kolom Rice Thai 5% tidak ditemukan")
-            return pd.DataFrame()
-        df = df[[date_col, rice_col]].copy()
-        df.columns = ["Tanggal_raw", "Rice_Thailand_USD"]
-        # Parse format '1960M01'
-        df["Tanggal"] = pd.to_datetime(df["Tanggal_raw"], format="%YM%m", errors="coerce")
-        df["Rice_Thailand_USD"] = pd.to_numeric(df["Rice_Thailand_USD"], errors="coerce")
-        df = df.dropna(subset=["Tanggal", "Rice_Thailand_USD"])
-        df = df.drop_duplicates(subset=["Tanggal"], keep="last")
-        df = df.set_index("Tanggal").sort_index()
-        df = df[["Rice_Thailand_USD"]]
-        print(f"{len(df)} bulan ({df.index.min().year}–{df.index.max().year})")
-        return df
+        date_col = df.columns[0]
+
+        # Ambil kolom tanggal
+        result = pd.DataFrame()
+        result["Tanggal"] = pd.to_datetime(df[date_col], format="%YM%m", errors="coerce")
+        result = result.dropna(subset=["Tanggal"]).set_index("Tanggal").sort_index()
+
+        loaded = 0
+        for cmo_col, out_col in CMO_COLUMNS.items():
+            if cmo_col in df.columns:
+                vals = pd.to_numeric(df[cmo_col].values, errors="coerce")
+                # Buat series dengan tanggal yang sama
+                series = pd.Series(vals[:len(result)], index=result.index, name=out_col)
+                result[out_col] = series
+                loaded += 1
+
+        result = result.dropna(how="all")
+        # Forward fill & backward fill untuk setiap kolom
+        for col in result.columns:
+            result[col] = result[col].ffill().bfill()
+
+        print(f"{loaded} komoditas, {len(result)} bulan ({result.index.min().year}–{result.index.max().year})")
+        return result
     except Exception as e:
         print(f"GAGAL – {e}")
         return pd.DataFrame()
@@ -938,23 +972,22 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr,
                      usd_idr_2026=None,
                      brent=None, dxy=None, fed_rate=None,
                      gold=None, cpo=None, gpr=None,
-                     fao_fpi=None, rice_thailand=None) -> pd.DataFrame:
+                     fao_fpi=None, cmo_all=None) -> pd.DataFrame:
     """
-    Gabungkan semua fitur time-series bulanan:
+    Gabungkan semua fitur time-series bulanan.
+
+    Fitur domestik:
     - Inflasi MoM (backbone, target)
     - IHK (2005–2023 lengkap; 2024–2026 diimputasi dari Inflasi MoM)
-    - BI Rate
-    - USD/IDR
+    - BI Rate, USD/IDR
     - Inflasi Komponen (Inti, Harga Diatur, Bergejolak)
     - Harga Minyak Mentah (WTI)
-    - Brent Oil (BARU)
-    - Dollar Index DXY (BARU)
-    - Fed Funds Rate (BARU)
-    - Gold Price (BARU)
-    - CPO Price (BARU)
-    - Geopolitical Risk Index (BARU)
-    - FAO Food Price Index (BARU v3.1)
-    - Rice Price Thailand 5% (BARU v3.1)
+
+    Fitur internasional:
+    - Brent Oil, DXY, Fed Funds Rate, Gold, CPO
+    - Geopolitical Risk Index (GPR)
+    - FAO Food Price Index
+    - 24 komoditas World Bank CMO (Palm Oil, Coal, Coffee, Wheat, dll)
     """
     print("\n▶ Membangun clean_inflasi_ts.csv ...")
 
@@ -988,7 +1021,7 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr,
     if not harga_minyak.empty:
         ts = ts.join(harga_minyak, how="left")
 
-    # Merge fitur internasional (BARU v3)
+    # Merge fitur internasional
     for new_df, name in [
         (brent, "Brent_USD"),
         (dxy, "DXY"),
@@ -997,10 +1030,13 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr,
         (cpo, "CPO_USD"),
         (gpr, "GPR_Index"),
         (fao_fpi, "FAO_FPI"),
-        (rice_thailand, "Rice_Thailand_USD"),
     ]:
         if new_df is not None and not new_df.empty and name in new_df.columns:
             ts = ts.join(new_df[[name]], how="left")
+
+    # Merge semua komoditas CMO (24 kolom)
+    if cmo_all is not None and not cmo_all.empty:
+        ts = ts.join(cmo_all, how="left")
 
     # Tambahkan fitur waktu (aman dari leakage)
     ts["Bulan"] = ts.index.month
@@ -1056,14 +1092,22 @@ def build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr,
             print(f"   [IMPUTASI] GPR_Index ffilled: {null_before - null_after} baris")
 
     # 6. Brent, CPO, dll: forward fill (mulai data setelah 2005)
-    for col in ["Brent_USD", "DXY", "FedRate_Pct", "Gold_USD", "CPO_USD",
-                "FAO_FPI", "Rice_Thailand_USD"]:
+    for col in ["Brent_USD", "DXY", "FedRate_Pct", "Gold_USD", "CPO_USD", "FAO_FPI"]:
         if col in ts.columns:
             null_before = ts[col].isna().sum()
             ts[col] = ts[col].ffill().bfill()
             null_after = ts[col].isna().sum()
             if null_after < null_before:
                 print(f"   [IMPUTASI] {col} ffilled: {null_before - null_after} baris")
+
+    # 6b. Semua kolom CMO: forward fill
+    cmo_cols = [c for c in ts.columns if c.startswith("CMO_")]
+    for col in cmo_cols:
+        null_before = ts[col].isna().sum()
+        ts[col] = ts[col].ffill().bfill()
+        null_after = ts[col].isna().sum()
+        if null_after < null_before:
+            print(f"   [IMPUTASI] {col} ffilled: {null_before - null_after} baris")
 
     # 7. Drop baris dengan Inflasi_MoM null (tidak bisa diimputasi untuk target)
     if "Inflasi_MoM" in ts.columns:
@@ -1251,7 +1295,7 @@ def main():
     cpo           = load_cpo()                # [19]
     gpr           = load_gpr()                # [20] Geopolitical Risk Index
     fao_fpi       = load_fao_fpi()            # [21] FAO Food Price Index
-    rice_thailand = load_rice_thailand()      # [22] Rice Price Thailand
+    cmo_all       = load_cmo_commodities()    # [22] Semua komoditas World Bank CMO
 
     # Build output files
     print("\n[BUILD]")
@@ -1260,7 +1304,7 @@ def main():
                               usd_idr_2026=usd_idr_2026,
                               brent=brent, dxy=dxy, fed_rate=fed_rate,
                               gold=gold, cpo=cpo, gpr=gpr,
-                              fao_fpi=fao_fpi, rice_thailand=rice_thailand)
+                              fao_fpi=fao_fpi, cmo_all=cmo_all)
     panel = build_daya_beli_panel(inflasi, ump, pengeluaran,
                                    pengangguran_sem, tpt_tpak,
                                    pdrb, penduduk_miskin)
