@@ -6,3 +6,7 @@ openpyxl
 scikit-learn
 torch
 django
+yfinance
+fredapi
+wbdata
+pandas-datareader
