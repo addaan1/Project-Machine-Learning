@@ -10,25 +10,30 @@ from django.http import JsonResponse
 from django.conf import settings
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
         super(LSTMModel, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+                            batch_first=True, dropout=dropout if num_layers > 1 else 0)
+        self.norm = nn.LayerNorm(hidden_size)
         self.fc = nn.Linear(hidden_size, output_size)
         
     def forward(self, x):
         out, _ = self.lstm(x)
-        out = self.fc(out[:, -1, :])
+        out = self.norm(out[:, -1, :])
+        out = self.fc(out)
         return out
 
 LSTM_MODEL = None
-LSTM_SCALER = None
+LSTM_SCALER_X = None
+LSTM_SCALER_Y = None
 RIDGE_MODEL = None
 INFLASI_PRED_MEM = None
 DATA_HISTORIS = None
+LSTM_FEATURES = None
 RATA_PENGELUARAN = 1450000
 
 def load_models():
-    global LSTM_MODEL, LSTM_SCALER, RIDGE_MODEL, INFLASI_PRED_MEM, DATA_HISTORIS, RATA_PENGELUARAN
+    global LSTM_MODEL, LSTM_SCALER_X, LSTM_SCALER_Y, RIDGE_MODEL, INFLASI_PRED_MEM, DATA_HISTORIS, LSTM_FEATURES, RATA_PENGELUARAN
     
     project_root = os.path.dirname(settings.BASE_DIR)
     models_dir = os.path.join(project_root, 'models')
@@ -45,75 +50,136 @@ def load_models():
             RIDGE_MODEL = raw
             
     lstm_path = os.path.join(models_dir, 'lstm_model.pt')
-    scaler_path = os.path.join(models_dir, 'lstm_scaler.pkl')
+    scaler_x_path = os.path.join(models_dir, 'lstm_scaler_x.pkl')
+    scaler_y_path = os.path.join(models_dir, 'lstm_scaler_y.pkl')
     
-    if os.path.exists(lstm_path) and os.path.exists(scaler_path) and LSTM_MODEL is None:
-        with open(scaler_path, 'rb') as f:
-            LSTM_SCALER = pickle.load(f)
+    # Cek apakah file scaler baru ada, jika tidak fallback ke scaler lama
+    if not os.path.exists(scaler_x_path):
+        scaler_x_path = os.path.join(models_dir, 'lstm_scaler.pkl')
+        scaler_y_path = None
+
+    if os.path.exists(lstm_path) and LSTM_MODEL is None:
+        # Load Scalers
+        if scaler_y_path and os.path.exists(scaler_x_path) and os.path.exists(scaler_y_path):
+            with open(scaler_x_path, 'rb') as f:
+                LSTM_SCALER_X = pickle.load(f)
+            with open(scaler_y_path, 'rb') as f:
+                LSTM_SCALER_Y = pickle.load(f)
+        elif os.path.exists(scaler_x_path):
+            with open(scaler_x_path, 'rb') as f:
+                LSTM_SCALER_X = pickle.load(f)
+            LSTM_SCALER_Y = LSTM_SCALER_X # Fallback
+        else:
+            return INFLASI_PRED_MEM, DATA_HISTORIS, RATA_PENGELUARAN
         
-        # Load checkpoint dan ambil metadata input_size
+        # Load checkpoint
         checkpoint = torch.load(lstm_path, weights_only=False)
         if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
             input_size = checkpoint.get('input_size', 44)
             seq_length = checkpoint.get('seq_length', 12)
             state_dict = checkpoint['model_state_dict']
+            LSTM_FEATURES = checkpoint.get('feature_columns', None)
         else:
             input_size = 44
             seq_length = 12
             state_dict = checkpoint
         
-        LSTM_MODEL = LSTMModel(input_size=input_size, hidden_size=64, num_layers=2, output_size=1)
+        LSTM_MODEL = LSTMModel(input_size=input_size, hidden_size=128, num_layers=2, output_size=1)
         LSTM_MODEL.load_state_dict(state_dict)
         LSTM_MODEL.eval()
         
+        # Load Data
         df = pd.read_csv(data_path)
         df['Tanggal'] = pd.to_datetime(df['Tanggal'])
         df = df.sort_values('Tanggal').reset_index(drop=True)
         df.set_index('Tanggal', inplace=True)
+        
+        # Imputasi & Feature Engineering (harus identik dengan training)
+        df = df.ffill().bfill()
+        df['Bulan_Sin'] = np.sin(2 * np.pi * df['Bulan']/12)
+        df['Bulan_Cos'] = np.cos(2 * np.pi * df['Bulan']/12)
+        if 'Harga_Minyak_USD' in df.columns and 'USD_IDR' in df.columns:
+            df['Oil_x_USDIDR'] = df['Harga_Minyak_USD'] * df['USD_IDR']
 
-        df['USD_IDR'] = df['USD_IDR'].interpolate(method='linear').ffill().bfill()
-        df['IHK'] = df['IHK'].interpolate(method='linear').bfill()
-        last_known_ihk_idx = df['IHK'].dropna().index[-1]
-        for date in df.loc[df.index > last_known_ihk_idx].index:
-            prev_date = date - pd.DateOffset(months=1)
-            if prev_date not in df.index:
-                prev_date = df.index[df.index.get_loc(date) - 1]
-            inflasi = df.loc[date, 'Inflasi_MoM']
-            df.loc[date, 'IHK'] = df.loc[prev_date, 'IHK'] * (1 + (inflasi / 100))
+        # Siapkan fitur (identik dengan training)
+        if LSTM_FEATURES is None:
+             # Fallback jika feature_columns tidak disimpan
+            exclude_cols = ['Bulan', 'Tahun']
+            feature_cols = [c for c in df.columns if c not in exclude_cols]
+            if 'Inflasi_MoM' in feature_cols: feature_cols.remove('Inflasi_MoM')
+            feature_cols = ['Inflasi_MoM'] + feature_cols
+        else:
+            feature_cols = LSTM_FEATURES
 
-        df.fillna(method='ffill', inplace=True)
-        df.fillna(method='bfill', inplace=True)
-
-        # Semua fitur numerik yang digunakan LSTM
-        feature_cols = [c for c in df.columns
-                       if c not in ('Tanggal', 'Bulan', 'Tahun', 'Inflasi_MoM')]
-        feature_cols = ['Inflasi_MoM'] + feature_cols  # Target di indeks 0
-        last_seq = df[feature_cols].tail(seq_length)
-        scaled_last = LSTM_SCALER.transform(last_seq)
-        X_pred = torch.tensor(np.array([scaled_last]), dtype=torch.float32)
+        df_lstm = df[feature_cols].copy()
+        
+        # Ambil sequence terakhir untuk prediksi
+        last_seq = df_lstm.tail(seq_length).values
+        X_scaled = LSTM_SCALER_X.transform(last_seq[:, 1:]) # Exclude target
+        y_scaled = LSTM_SCALER_Y.transform(last_seq[:, 0].reshape(-1, 1))
+        
+        # Bentuk tensor: (1, seq_len, features)
+        # Perlu reshape X_scaled dan y_scaled menjadi sequence gabungan
+        # Karena model dilatih dengan input gabungan (target+exogenous), 
+        # kita perlu gabungkan kembali dalam format yang benar.
+        # Namun, model kita dilatih dengan input X_scaled (tanpa target) dan target y_scaled terpisah?
+        # Tidak, di save_lstm_model.py: X_scaled = scaler_X.transform(X_all) (X_all excludes target)
+        # Tapi create_lstm_sequences menerima X_scaled dan y_scaled secara terpisah.
+        # Wait, di save_lstm_model.py:
+        # X_all = df_lstm.drop('Inflasi_MoM', axis=1).values
+        # y_all = df_lstm['Inflasi_MoM'].values.reshape(-1, 1)
+        # X_seq, y_seq = create_lstm_sequences(X_scaled, y_scaled, lag_steps)
+        # Jadi input model adalah X_scaled.
+        
+        # Prediksi langkah selanjutnya (Mei 2026)
+        X_input = torch.tensor(np.array([X_scaled]), dtype=torch.float32)
         
         with torch.no_grad():
-            pred_scaled = LSTM_MODEL(X_pred).numpy()
+            pred_scaled = LSTM_MODEL(X_input).numpy()
             
-        n_features = len(feature_cols)
-        dummy = np.zeros((1, n_features))
-        dummy[0, 0] = pred_scaled[0, 0]
-        inflasi_pred = LSTM_SCALER.inverse_transform(dummy)[0, 0]
+        inflasi_pred = float(LSTM_SCALER_Y.inverse_transform(pred_scaled)[0][0])
         INFLASI_PRED_MEM = inflasi_pred
         
-        # Simpan 24 data terakhir untuk plot grafik di web agar lebih representatif
+        # Recursive Forecast untuk Juni 2026
+        # Kita perlu update sequence: geser, buang bulan 1, tambah Mei di akhir
+        # Untuk Mei: kita sudah punya X_scaled (12 bulan: Apr 25 - Mar 26? atau May 25 - Apr 26?)
+        # Asumsi last_seq adalah May 25 - Apr 26 (12 bulan).
+        # Maka prediksi Mei 26.
+        # Untuk Juni: input harus Jun 25 - May 26.
+        # Kita asumsikan fitur exogenous Juni 26 = Mei 26 (atau flat).
+        # Kita update kolom target di sequence lama dengan prediksi baru?
+        # TIDAK. Input model kita hanya X (exogenous). Target tidak masuk ke input LSTM!
+        # Karena model hanya pakai exogenous features, sequence untuk Juni 26 
+        # harus geser 1 bulan dari sequence Mei 26.
+        # Kita asumsikan fitur exogenous Juni 26 = Mei 26 (copy baris terakhir).
+        
+        next_seq_exo = np.vstack([X_scaled[1:], X_scaled[-1:]])
+        X_input_next = torch.tensor(np.array([next_seq_exo]), dtype=torch.float32)
+        
+        with torch.no_grad():
+            pred_scaled_next = LSTM_MODEL(X_input_next).numpy()
+            
+        inflasi_pred_next = LSTM_SCALER_Y.inverse_transform(pred_scaled_next)[0][0]
+        
+        # Siapkan data historis untuk grafik
         recent_df = df.tail(24).copy()
         recent_df['Bulan_Tahun'] = recent_df.index.strftime('%b %Y')
         
         labels = recent_df['Bulan_Tahun'].tolist()
         data_actual = recent_df['Inflasi_MoM'].tolist()
         
-        labels.append("Mar 2026 (Prediksi)")
+        # Tambahkan prediksi
+        labels.append("Mei 2026 (Pred)")
+        data_actual.append(None)
+        
+        labels.append("Jun 2026 (Pred)")
         data_actual.append(None)
         
         data_pred = [None] * 24
-        data_pred[-1] = recent_df['Inflasi_MoM'].iloc[-1]
-        data_pred.append(inflasi_pred)
+        # Sambungkan garis prediksi dari titik aktual terakhir
+        data_pred[-1] = data_actual[-3] # Nilai Apr 2026
+        data_pred.append(float(inflasi_pred))
+        data_pred.append(float(inflasi_pred_next))
         
         DATA_HISTORIS = {
             'labels': json.dumps(labels),
@@ -150,7 +216,7 @@ def landing_page(request):
         pie_data = [float(makanan_mean), float(bukan_makanan_mean)]
 
     context = {
-        'inflasi_pred': inflasi_pred or 0.0,
+        'inflasi_pred': float(inflasi_pred) if inflasi_pred else 0.0,
         'rata_pengeluaran': "{:,.0f}".format(rata_pengeluaran).replace(',', '.'),
         'chart_labels': json.dumps(chart_labels),
         'ump_data': json.dumps(ump_data),
@@ -163,7 +229,7 @@ def landing_page(request):
 def forecasting_page(request):
     inflasi_pred, hist_data, _ = load_models()
     context = {
-        'inflasi_pred': inflasi_pred or 0.0,
+        'inflasi_pred': float(inflasi_pred) if inflasi_pred else 0.0,
         'labels': hist_data['labels'] if hist_data else '[]',
         'data_actual': hist_data['data_actual'] if hist_data else '[]',
         'data_pred': hist_data['data_pred'] if hist_data else '[]',
