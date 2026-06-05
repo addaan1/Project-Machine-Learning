@@ -1,196 +1,228 @@
-# Sistem Prediksi Inflasi & Analisis Dampak terhadap Daya Beli
+# Prediksi Inflasi dan Dampaknya terhadap Daya Beli
 
-> **Machine Learning SD-A1 — Universitas Airlangga**
+> **Kelompok E – Machine Learning SD-A1, Universitas Airlangga**
 
-## Ringkasan
-
-Proyek ini mengembangkan sistem machine learning end-to-end untuk **memprediksi inflasi bulanan Indonesia** dan **menganalisis dampaknya terhadap daya beli masyarakat** di tingkat provinsi. Sistem terdiri dari dua model utama yang terintegrasi dalam dashboard web interaktif berbasis Django.
-
----
-
-## Arsitektur Sistem
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Data Layer (23 Dataset)                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │   Domestic   │  │ International│  │  World Bank API  │  │
-│  │  (BPS, BI)   │  │(Yahoo, FRED) │  │  (Nasional)      │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
-└─────────┼─────────────────┼───────────────────┼────────────┘
-          │                 │                   │
-          ▼                 ▼                   ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Preprocessing Pipeline (Python)               │
-│         preprocessing.py → clean_inflasi_ts.csv           │
-│                         → clean_daya_beli.csv             │
-└────────────────────────┬──────────────────────────────────┘
-                         │
-         ┌───────────────┴───────────────┐
-         ▼                               ▼
-┌─────────────────────┐      ┌─────────────────────────────┐
-│ Model 1: Forecasting│      │ Model 2: Regresi Daya Beli  │
-│      LSTM           │      │  Panel FE + XGBoost + Lasso │
-│  (44 fitur, TS)     │      │  (18 fitur, Panel Data)     │
-│  Test MAE: 0.18%    │      │  Test R²: 0.83 (XGBoost)    │
-└──────────┬──────────┘      └─────────────┬───────────────┘
-           │                               │
-           └───────────────┬───────────────┘
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│           Dashboard Django (Interactive Web App)            │
-│   /forecasting/  →  Prediksi inflasi 1-2 bulan ke depan    │
-│   /daya-beli/    →  Simulasi dampak kebijakan ekonomi     │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Model 1 — Forecasting Inflasi (LSTM)
-
-**Prediksi inflasi bulanan 1-2 bulan ke depan** menggunakan 44 fitur time-series:
-
-| Aspek | Spesifikasi |
-|-------|-------------|
-| Arsitektur | LSTM 2-layer, 128 hidden units, LayerNorm, Dropout 0.3 |
-| Window | 12 bulan |
-| Fitur | 44 (1 target + 43 eksogenous: domestik, internasional, komoditas) |
-| Komoditas | 26 komoditas World Bank CMO (minyak, batu bara, CPO, pangan, logam) |
-| Split | Chronological: 80% Train, 20% Validation |
-| Scaler | MinMaxScaler (fitur & target terpisah) |
-| Optimizer | AdamW + ReduceLROnPlateau + Early Stopping |
-| Metrik | MAE: 0.18% (test) |
-
-**Data Sources**: BPS (IHK, inflasi komponen), Bank Indonesia (BI Rate), Yahoo Finance (Brent, DXY, Gold, CPO), FRED (Fed Funds Rate), FAO (Food Price Index), World Bank CMO (26 komoditas), Geopolitical Risk Index.
-
----
-
-## Model 2 — Analisis Daya Beli (Panel Data + ML)
-
-**Mengukur pengaruh makroekonomi terhadap daya beli per kapita** di 38 provinsi Indonesia (2021–2025).
-
-### Pendekatan
-
-| Model | Metode | Tujuan | Test R² |
-|-------|--------|--------|---------|
-| Baseline OLS | 3 fitur (Inflasi, UMP, Tahun) | Interpretasi sederhana | 0.18 |
-| **Panel FE Macro** | Fixed Effects + 4 fitur makro | **Model interpretatif utama** | 0.43 |
-| Panel FE Full | Fixed Effects + 18 fitur | Eksplorasi lengkap | overfit |
-| Lasso | L1 regularization | Feature selection otomatis | 0.68 |
-| Random Forest | Tree ensemble | Non-linear relationships | 0.69 |
-| **XGBoost** | Gradient boosting | **Model prediktif terbaik** | **0.83** |
-
-### Feature Engineering
-
-- **Real_UMP** = UMP / (1 + Inflasi) → daya beli upah riil
-- **YoY Growth** → pertumbuhan tahunan per provinsi
-- **Interaction** → UMP × PDRB, Inflasi × TPT
-- **Log transforms** → untuk distribusi skewed
-
-### Temuan Ekonomi (Panel FE Macro)
-
-| Variabel | Efek | Signifikansi | Elastisitas |
-|----------|------|--------------|-------------|
-| **TPT** (Pengangguran) | Negatif | ⭐⭐⭐ (t=-6.97) | -0.30% |
-| **PDRB** | Positif | ⭐⭐⭐ (t=4.25) | +0.26% |
-| **Real_UMP** | Positif | ⭐⭐⭐ (t=4.18) | +0.51% |
-| **Inflasi** | Positif kecil | ⭐⭐ (t=2.98) | +0.05% |
-
-### Simulasi Counterfactual
-
-| Skenario Kebijakan | Dampak Daya Beli |
-|--------------------|------------------|
-| UMP naik 10% | **+4.7%** |
-| Inflasi +5% & UMP +10% | **+4.9%** |
-| PDRB turun 20% | -5.3% |
-| Resesi (TPT ×3) | **-56.0%** |
+Proyek ini membangun dua model machine learning: (1) **Forecasting inflasi bulanan** menggunakan LSTM dengan 44 fitur time-series, dan (2) **Regresi daya beli per kapita** per provinsi menggunakan Ridge Regression dengan 15 fitur panel data.
 
 ---
 
 ## Dataset
 
-Total **23 dataset** dari 11 sumber resmi:
+Total **23 dataset** dari BPS, Bank Indonesia, World Bank, Yahoo Finance, FRED, FAO.
 
-### Model 1 (Forecasting) — 15 Dataset, 44 Fitur
+### Model 1 — Forecasting Inflasi (LSTM, 44 fitur)
 
-| Kategori | Dataset | Sumber |
-|----------|---------|--------|
-| Domestik | IHK, Inflasi M-to-M, BI Rate, USD/IDR, Inflasi Komponen, WTI | BPS, BI, Investing.com, IndexMundi |
-| Internasional | Brent, DXY, Fed Funds, Gold, CPO, GPR, FAO Food Price | Yahoo Finance, FRED, FAO, policyuncertainty.com |
-| Komoditas | 26 komoditas (minyak, batu bara, CPO, pangan, logam) | World Bank Commodity Markets Outlook |
+#### Domestik
 
-### Model 2 (Daya Beli) — 8 Dataset, 18 Fitur
+| # | Dataset | Sumber | Link |
+|---|---------|--------|------|
+| 1 | Indeks Harga Konsumen (Umum) | BPS | https://www.bps.go.id/id/statistics-table/2/MiMy/indeks-harga-konsumen--umum-.html |
+| 2 | Inflasi Bulanan (M to M) | BPS | https://www.bps.go.id/id/statistics-table/2/MSMy/inflasi--umum-.html |
+| 3 | Tingkat Inflasi Harga Konsumen Nasional Tahun Kalender (Y-to-D) | BPS | https://www.bps.go.id/id/statistics-table/1/OTE0IzE=/tingkat-inflasi-harga-konsumen-nasional-tahun-kalender--y-to-d---sup-1--sup---2022-100-.html |
+| 4 | BI Rate Data Inflasi | Bank Indonesia | https://www.bi.go.id/id/statistik/indikator/data-inflasi.aspx |
+| 7 | Data Historis USD/IDR | Investing.com | https://id.investing.com/currencies/usd-idr-historical-data |
+| 12 | Inflasi Umum, Inti, Harga Diatur, Bergejolak (M-to-M dan Y-to-D) | BPS | https://www.bps.go.id/id/statistics-table/1/OTA4IzE=/inflasi-umum--inti--harga-yang-diatur-pemerintah--dan-barang-bergejolak-inflasi-indonesia--2009-2025.html |
+| 13 | Harga Bulanan Minyak Mentah (WTI) | IndexMundi | https://www.indexmundi.com/commodities/?commodity=crude-oil&months=300 |
 
-| Kategori | Dataset | Sumber |
-|----------|---------|--------|
-| Makro Provinsi | UMP, PDRB, TPT, Pengeluaran per Kapita | BPS, Open Data Jabar |
-| Sosial | IPM, Jumlah Penduduk, Distribusi Penduduk | BPS |
-| Indikator Nasional | GDP per Capita PPP, Unemployment, Poverty, Inflasi | World Bank API |
+#### Internasional
 
----
+| # | Dataset | Sumber | Link |
+|---|---------|--------|------|
+| 14 | Geopolitical Risk Index | policyuncertainty.com | https://www.policyuncertainty.com/gpr.html |
+| 15 | FAO Food Price Index | FAO | https://www.fao.org/worldfoodsituation/foodpricesindex/en/ |
+| 16 | Commodity Markets (26 komoditas) | World Bank | https://www.worldbank.org/en/research/commodity-markets |
 
-## Teknologi
+Komoditas World Bank CMO yang digunakan: Palm Oil, Coal (AU & SA), Coffee (Robusta & Arabica), Wheat (SRW & HRW), Soybeans, Soybean Oil, Sugar, Rubber (TSR20 & RSS3), Cotton, Rice Thailand, Coconut Oil, Groundnuts, Fish Meal, Maize, Tin, Nickel, Copper, Aluminum, Iron Ore, Natural Gas (US & Europe), LNG Japan.
 
-| Layer | Stack |
-|-------|-------|
-| **Data Pipeline** | Python, Pandas, NumPy |
-| **Modeling** | PyTorch (LSTM), Scikit-learn (Ridge, Lasso), XGBoost, statsmodels, linearmodels |
-| **Dashboard** | Django, Chart.js |
-| **Visualization** | Matplotlib, Seaborn |
-| **Version Control** | Git |
+Data internasional lainnya (Crude Oil Brent, DXY, Fed Funds Rate, Gold Price, CPO Price) diunduh otomatis dari Yahoo Finance dan FRED melalui `download_international.py`.
 
 ---
 
-## Struktur Repository
+### Model 2 — Regresi Daya Beli (Ridge, 15 fitur, panel provinsi × tahun)
+
+#### Data Provinsi (manual scraping dari BPS)
+
+| # | Dataset | Fitur | Sumber | Link |
+|---|---------|-------|--------|------|
+| 5 | Upah Minimum Provinsi (UMP) | `UMP` | BPS Jateng | https://jateng.bps.go.id/id/statistics-table/2/MjgyNCMy/upah-minimum-provinsi-ump-per-bulan-menurut-provinsi-di-indonesia.html |
+| 6 | Rata-rata Pengeluaran per Kapita Sebulan | `Total_Pengeluaran` (target) | BPS | https://www.bps.go.id/id/statistics-table/3/V1ZKMWVrSTNOek5ZZUZOcVZEZGFValJvV0hWalFUMDkjMyMwMDAw/rata-rata-pengeluaran-per-kapita-sebulan-makanan-dan-bukan-makanan-di-daerah-perkotaan-dan-perdesaan-menurut-provinsi--rupiah-.html?year=2025 |
+| 8 | Tingkat Pengangguran Terbuka (Semester & Provinsi) | `TPT` | Open Data Jabar | https://opendata.jabarprov.go.id/id/dataset/tingkat-pengangguran-terbuka-berdasarkan-semester-dan-provinsi-di-indonesia |
+| 9 | TPT & TPAK Menurut Provinsi | `TPT` | BPS | https://www.bps.go.id/id/statistics-table/3/V2pOVWJWcHJURGg0U2pONFJYaExhVXB0TUhacVFUMDkjMw%3D%3D/tingkat-pengangguran-terbuka--tpt--dan-tingkat-partisipasi-angkatan-kerja--tpak--menurut-provinsi--2019.html |
+| 10 | PDRB Per Kapita (Ribu Rupiah) | `PDRB_HargaKonstan` | BPS | https://www.bps.go.id/id/statistics-table/2/Mjg4IzI=/-seri-2010--produk-domestik-regional-bruto-per-kapita--ribu-rupiah-.html |
+| 11 | Persentase Penduduk Miskin | `Pct_Penduduk_Miskin` | Open Data Jabar | https://opendata.jabarprov.go.id/id/dataset/persentase-penduduk-miskin-berdasarkan-provinsi-di-indonesia |
+| 17 | Gini Ratio Menurut Provinsi | `Gini_Rasio` | BPS | https://www.bps.go.id/id/statistics-table/2/OTgjMg==/gini-rasio--maret-2023.html |
+| 18 | Indeks Pembangunan Manusia (IPM) | `IPM` | BPS | https://www.bps.go.id/id/statistics-table/2/NDk0IzI=/-metode-baru--indeks-pembangunan-manusia-menurut-provinsi.html |
+| 19 | Garis Kemiskinan (Rp/Kapita/Bulan) | `Garis_Kemiskinan` | BPS | https://www.bps.go.id/id/statistics-table/2/MTk1IzI=/poverty-line--rupiah-kapita-month--by-province-and-area.html |
+| 20 | Jumlah Penduduk Menurut Provinsi (Ribu Jiwa) | `Jumlah_Penduduk` | BPS Sulut | https://sulut.bps.go.id/id/statistics-table/2/OTU4IzI=/jumlah-penduduk-menurut-provinsi-di-indonesia.html |
+| - | Distribusi & Demografi Penduduk per Provinsi | `Pct_Populasi` | BPS | https://www.bps.go.id |
+| 21 | Akses Air Minum Layak per Provinsi (%) | `Pct_Akses_Air_Bersih` | BPS | https://www.bps.go.id/id/statistics-table/2/ODU0IzI=/persentase-rumah-tangga-yang-memiliki-akses-terhadap-sumber-air-minum-layak-menurut-provinsi-dan-klasifikasi-desa--persen-.html |
+| 22 | Rata-rata Konsumsi Protein Per Kapita (gram/hari) | `Protein_gram_per_hari` | BPS | https://www.bps.go.id/id/statistics-table/1/MTk4NiMx/rata-rata-harian-konsumsi-protein-per-kapita-dan-konsumsi-kalori-per-kapita-tahun-1990-2023.html |
+| 23 | Persentase Rumah Tangga menurut Provinsi | - | BPS | https://www.bps.go.id/id/statistics-table/1/MTYwMyMx/persentase-rumah-tangga-menurut-provinsi--jenis-kelamin-kepala-rumah-tangga--dan-banyaknya-anggota-rumah-tangga--2009-2024.html |
+
+**Catatan:**
+- Dataset #23 (Rumah Tangga) berisi persentase distribusi jumlah anggota rumah tangga, bukan jumlah absolut. Belum digunakan dalam model.
+- Dataset #2 (Inflasi Bulanan M-to-M) sudah mencakup semua kota BPS, sehingga Inflasi per Kota tidak diperlukan terpisah.
+- Kredit Konsumsi per Provinsi dihapus karena tidak tersedia dari sumber publik.
+
+#### Data Nasional (World Bank API, auto-download)
+
+| # | Indikator | Kode | Sumber | Link |
+|---|-----------|------|--------|------|
+| WB1 | Inflasi (annual %) | `FP.CPI.TOTL.ZG` | World Bank | https://data.worldbank.org |
+| WB2 | GDP per Capita PPP (constant 2017 $) | `NY.GDP.PCAP.PP.KD` | World Bank | https://data.worldbank.org |
+| WB3 | Unemployment (% total) | `SL.UEM.TOTL.ZS` | World Bank | https://data.worldbank.org |
+| WB4 | Poverty Headcount (%) | `SI.POV.NAHC` | World Bank | https://data.worldbank.org |
+
+Diunduh otomatis oleh `download_domestic.py` melalui World Bank Indicators API.
+
+---
+
+## Model Machine Learning
+
+### Model 1 — Forecasting Inflasi (LSTM)
+
+| Aspek | Spesifikasi |
+|-------|-------------|
+| Arsitektur | LSTM 2-layer, 128 hidden units, LayerNorm, Dropout 0.3 |
+| Window | 12 bulan |
+| Fitur | 44 (1 target + 43 eksogenous) |
+| Split | Chronological: 80% Train, 20% Validation |
+| Scaler | MinMaxScaler (terpisah fitur & target) |
+| Optimizer | AdamW + ReduceLROnPlateau + Early Stopping |
+| Forecast | 1-2 bulan ke depan (recursive) |
+
+### Model 2 — Regresi Daya Beli (Ridge)
+
+| Aspek | Spesifikasi |
+|-------|-------------|
+| Model | Ridge Regression (alpha tuning via GridSearchCV) |
+| Fitur | 15 numerik + Provinsi (one-hot) |
+| Split | Chronological: Train (≤2023), Test (≥2024) |
+| Best Alpha | 0.1 |
+| Metrik | R², MAE, RMSE |
+
+**Fitur numerik (15):** TPT, PDRB_HargaKonstan, Inflasi_Rata_Tahunan, Gini_Rasio, IPM, Garis_Kemiskinan, Jumlah_Penduduk, Pct_Populasi, Pct_Akses_Air_Bersih, Protein_gram_per_hari, Inflasi_WB_Annual, GDP_PerCapita_PPP, Pct_Unemployment_WB, Poverty_Headcount_Pct, Real_UMP.
+
+**Feature Engineering:**
+- `Real_UMP` = UMP / (1 + Inflasi_Rata_Tahunan) → daya beli upah riil
+- Carry-forward imputation per provinsi untuk fitur yang tidak tersedia di semua tahun
+
+### Hasil
+
+| Metrik | Train | Test |
+|--------|-------|------|
+| R² | 0.9916 | 0.9080 |
+| MAE | - | Rp 93,249 |
+| RMSE | - | Rp 108,754 |
+
+### Analisis Lanjutan (Notebook)
+
+Notebook `analisis_daya_beli_regresi.ipynb` berisi analisis tambahan:
+
+| Model | Test R² | Catatan |
+|-------|---------|---------|
+| XGBoost | 0.834 | Model prediktif terbaik (non-linear) |
+| Random Forest | 0.693 | Tree ensemble |
+| Lasso | 0.679 | Feature selection otomatis |
+| Panel FE Macro | 0.427 | Fixed Effects + 4 variabel makro (interpretatif) |
+| OLS Baseline | 0.183 | 3 fitur dasar |
+
+Temuan ekonomi dari Panel FE:
+- **TPT** (pengangguran): efek negatif paling kuat (t=-6.97)
+- **PDRB**: pertumbuhan ekonomi → daya beli naik (t=4.25)
+- **Real_UMP**: upah riil → daya beli naik (t=4.18)
+- **UMP +10%** → daya beli naik 4.7% (simulasi counterfactual)
+
+---
+
+## Struktur Proyek
 
 ```
-├── datasets/               # Raw & processed data
-│   ├── international/        # Yahoo, FRED, FAO, World Bank CMO
-│   ├── domestic_baru/       # BPS per-provinsi
-│   └── processed/            # clean_inflasi_ts.csv, clean_daya_beli.csv
-├── notebooks/               
+├── datasets/
+│   ├── BI Rate (Data Inflasi)/
+│   ├── Data Historis USD_IDR/
+│   ├── Harga Bulanan Minyak Mentah/
+│   ├── Indeks Harga Konsumen (Umum)/
+│   ├── Inflasi Bulanan/
+│   ├── Inflasi Umum, Inti, Harga Diatur, Bergejolak/
+│   ├── Persentase Penduduk Miskin/
+│   ├── Produk Domestik Regional Bruto Per Kapita/
+│   ├── Rata-rata Pengeluaran per Kapita/
+│   ├── Tingkat Pengangguran Terbuka/
+│   ├── Upah Minimum Provinsi/
+│   ├── international/
+│   │   ├── CMO-Historical-Data-Monthly.xlsx
+│   │   ├── cpo_price.csv, crude_oil_brent.csv, data_gpr_export.csv
+│   │   ├── dxy_dollar_index.csv, fed_funds_rate.csv, gold_price.csv
+│   │   └── ...
+│   ├── domestic_baru/
+│   │   ├── IPM/                      (15 CSV, 2010-2024)
+│   │   ├── Jumlah_Penduduk/          (7 CSV, 2018-2024)
+│   │   ├── Tingkat_Urbanisasi/       (17 CSV, 2010-2026)
+│   │   ├── Gini_Rasio/               (16 XLSX, 2010-2025)
+│   │   ├── Garis_Kemiskinan/         (13 XLSX, 2013-2025)
+│   │   ├── Akses_Air_Bersih/         (17 XLSX, 2009-2025)
+│   │   ├── Konsumsi_Protein/         (1 XLS, 1990-2025)
+│   │   ├── Jumlah_Rumah_Tangga/      (1 XLS)
+│   │   └── WorldBank_Nasional/       (4 CSV, auto-download)
+│   └── processed/
+│       ├── clean_inflasi_ts.csv       (257 × 45)
+│       └── clean_daya_beli.csv        (177 × 23)
+├── notebooks/
 │   ├── forecasting_inflasi_models.ipynb
-│   └── analisis_daya_beli_regresi.ipynb   # Panel FE + XGBoost + Counterfactual
-├── dashboard/               # Django web app
+│   └── analisis_daya_beli_regresi.ipynb
+├── dashboard/                          (Django web app)
 │   └── predictions/
-│       └── views.py          # Model loading & API endpoints
-├── preprocessing.py         # ETL pipeline
-├── download_international.py # Auto-download Yahoo, FRED, FAO
-├── download_domestic.py      # Auto-download World Bank API
-├── save_lstm_model.py      # Training pipeline LSTM
-├── save_ridge_model.py     # Training pipeline Ridge
-├── models/                  # Serialized models
-│   ├── lstm_inflasi.pt
+│       └── views.py
+├── models/
+│   ├── lstm_model.pt, lstm_scaler_x.pkl, lstm_scaler_y.pkl
 │   ├── best_daya_beli_ridge.pkl
 │   └── best_daya_beli_xgboost.pkl
+├── preprocessing.py                    (ETL pipeline)
+├── download_international.py           (auto-download Yahoo, FRED, FAO)
+├── download_domestic.py                (auto-download World Bank API)
+├── save_lstm_model.py                  (training LSTM)
+├── save_ridge_model.py                 (training Ridge)
 └── requirements.txt
 ```
 
 ---
 
-## Hasil & Metrik
-
-| Model | Train R² | Test R² | Test MAE |
-|-------|----------|---------|----------|
-| LSTM Inflasi | — | — | **0.18%** |
-| XGBoost Daya Beli | 1.000 | **0.834** | Rp 119,224 |
-| Random Forest Daya Beli | 0.859 | 0.693 | Rp 142,937 |
-| Lasso Daya Beli | 0.848 | 0.679 | Rp 154,513 |
-| Panel FE Macro | 0.986 | 0.427 | Rp 126,334 |
-
----
-
 ## Dashboard
 
-| Endpoint | Fungsi |
-|----------|--------|
-| `/` | Overview inflasi & daya beli nasional |
-| `/forecasting/` | Prediksi inflasi 1-2 bulan ke depan dengan chart interaktif |
-| `/daya-beli/` | Simulasi slider: UMP, inflasi, TPT, PDRB → prediksi daya beli |
+| Halaman | URL | Fungsi |
+|---------|-----|--------|
+| Landing | `/` | Overview inflasi & daya beli |
+| Forecasting | `/forecasting/` | Prediksi inflasi 1-2 bulan ke depan |
+| Daya Beli | `/daya-beli/` | Simulasi dampak inflasi terhadap daya beli (slider interaktif) |
 
 ---
 
-## Tim Pengembang
+## Cara Menjalankan
+
+```bash
+pip install -r requirements.txt
+
+# Unduh data internasional
+python download_international.py
+
+# Unduh data domestik (World Bank API)
+python download_domestic.py
+
+# Preprocessing
+python preprocessing.py
+
+# Train model
+python save_lstm_model.py
+python save_ridge_model.py
+
+# Jalankan dashboard
+cd dashboard && python manage.py runserver
+```
+
+---
+
+## Anggota Kelompok E
 
 | Nama | NIM |
 |------|-----|
@@ -199,15 +231,3 @@ Total **23 dataset** dari 11 sumber resmi:
 | Semaya David Petroes Putra | 164231048 |
 | Adrina Firda Marwah | 164231087 |
 | Okan Athallah Maredith | 164231088 |
-
----
-
-## Referensi Data
-
-- [Badan Pusat Statistik (BPS)](https://www.bps.go.id)
-- [Bank Indonesia](https://www.bi.go.id)
-- [World Bank Commodity Markets Outlook](https://www.worldbank.org/en/research/commodity-markets)
-- [Yahoo Finance](https://finance.yahoo.com)
-- [FRED](https://fred.stlouisfed.org)
-- [FAO Food Price Index](https://www.fao.org/worldfoodsituation/foodpricesindex/en/)
-- [Geopolitical Risk Index](https://www.policyuncertainty.com/gpr.html)

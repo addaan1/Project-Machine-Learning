@@ -1026,33 +1026,40 @@ def _load_prov_year_csv(folder_name, file_name, value_col, expected_cols=None):
 
 
 def load_gini_rasio() -> pd.DataFrame:
-    """[15] Indeks Gini Rasio per Provinsi (BPS, format: kolom nama mengandung 'gini'/'ketimpangan').
-    User scrape manual dari https://www.bps.go.id/id/statistics-table/2/OTgjMg==/gini-rasio--maret-2023.html
+    """[17] Gini Ratio per Provinsi (BPS xlsx).
+    Format: 4 header rows, data from row 4.
+    Cols: 38 Provinsi | Perkotaan Sem1 | Perkotaan Sem2 | Perkotaan Tahunan
+          | Perdesaan Sem1 | Perdesaan Sem2 | Perdesaan Tahunan
+          | Total Sem1 | Total Sem2 | Total Tahunan
+    Kita ambil rata-rata Sem1+Sem2 dari Total (Perkotaan+Perdesaan).
     """
-    print("  [15/33] Indeks Gini per Provinsi...", end=" ")
+    print("  [17/33] Gini Ratio per Provinsi...", end=" ")
     folder = os.path.join(BASE, "domestic_baru", "Gini_Rasio")
     if not os.path.exists(folder):
         print("GAGAL – folder tidak ada")
         return pd.DataFrame()
     frames = []
     for fn in os.listdir(folder):
-        if not fn.lower().endswith(".csv"):
+        if not fn.lower().endswith((".xlsx", ".xls")):
             continue
+        tahun_match = re.search(r"(\d{4})", fn)
+        if not tahun_match:
+            continue
+        tahun = int(tahun_match.group(1))
         try:
-            df = pd.read_csv(os.path.join(folder, fn), skiprows=2, header=None, dtype=str)
-            # Asumsi: kolom 0 = Provinsi, kolom 1 = Nilai Gini
-            df = df.iloc[:, :2]
-            df.columns = ["Provinsi", "Gini_Rasio"]
-            df = df.dropna(subset=["Provinsi", "Gini_Rasio"])
-            df["Provinsi"] = df["Provinsi"].apply(_normalize_prov)
-            df["Gini_Rasio"] = df["Gini_Rasio"].apply(_to_float_id)
-            # Cari tahun dari nama file
-            tahun_match = re.search(r"(\d{4})", fn)
-            if tahun_match:
-                df["Tahun"] = int(tahun_match.group(1))
-            else:
-                continue
+            df = pd.read_excel(os.path.join(folder, fn), header=None, skiprows=4)
+            # kolom 0=Provinsi, 7=Total Sem1, 8=Total Sem2
+            df = df.iloc[:, [0, 7, 8]].copy()
+            df.columns = ["Provinsi", "Sem1", "Sem2"]
+            df = df.dropna(subset=["Provinsi"])
+            df["Provinsi"] = df["Provinsi"].astype(str).apply(_normalize_prov)
+            df = df[df["Provinsi"] != "Indonesia"]
+            df["Sem1"] = df["Sem1"].apply(_to_float_id)
+            df["Sem2"] = df["Sem2"].apply(_to_float_id)
+            # Rata-rata semester, fallback ke salah satu jika satu NaN
+            df["Gini_Rasio"] = df[["Sem1", "Sem2"]].mean(axis=1)
             df = df.dropna(subset=["Gini_Rasio"])
+            df["Tahun"] = tahun
             frames.append(df[["Provinsi", "Tahun", "Gini_Rasio"]])
         except Exception as e:
             print(f"\n   WARNING – {fn}: {e}")
@@ -1061,9 +1068,7 @@ def load_gini_rasio() -> pd.DataFrame:
         return pd.DataFrame()
     result = pd.concat(frames, ignore_index=True)
     result = result.drop_duplicates(["Provinsi", "Tahun"])
-    # Filter "INDONESIA" row (jika ada)
-    result = result[result["Provinsi"] != "Indonesia"]
-    print(f"{len(result)} baris")
+    print(f"{len(result)} baris ({result['Tahun'].min()}-{result['Tahun'].max()})")
     return result
 
 
@@ -1110,30 +1115,39 @@ def load_ipm() -> pd.DataFrame:
 
 
 def load_garis_kemiskinan() -> pd.DataFrame:
-    """[17] Garis Kemiskinan per Provinsi (BPS, Rp/kapita/bulan)."""
-    print("  [17/33] Garis Kemiskinan per Provinsi...", end=" ")
+    """[19] Garis Kemiskinan per Provinsi (BPS xlsx, Rp/kapita/bulan).
+    Format: 4 header rows, data from row 4.
+    Cols: 38 Provinsi | Perkotaan Sem1 | Perkotaan Sem2 | Perkotaan Tahunan
+          | Perdesaan Sem1 | Perdesaan Sem2 | Perdesaan Tahunan
+    Kita ambil rata-rata Sem1+Sem2 dari Perkotaan dan Perdesaan.
+    """
+    print("  [19/33] Garis Kemiskinan per Provinsi...", end=" ")
     folder = os.path.join(BASE, "domestic_baru", "Garis_Kemiskinan")
     if not os.path.exists(folder):
         print("GAGAL – folder tidak ada")
         return pd.DataFrame()
     frames = []
     for fn in os.listdir(folder):
-        if not fn.lower().endswith(".csv"):
+        if not fn.lower().endswith((".xlsx", ".xls")):
             continue
         tahun_match = re.search(r"(\d{4})", fn)
         if not tahun_match:
             continue
         tahun = int(tahun_match.group(1))
         try:
-            df = pd.read_csv(os.path.join(folder, fn), skiprows=3, header=None, dtype=str)
-            df = df.iloc[:, :2]
-            df.columns = ["Provinsi", "Garis_Kemiskinan"]
-            df = df.dropna(subset=["Provinsi", "Garis_Kemiskinan"])
-            df["Provinsi"] = df["Provinsi"].apply(_normalize_prov)
-            df["Garis_Kemiskinan"] = df["Garis_Kemiskinan"].apply(_to_float_id)
-            df["Tahun"] = tahun
-            df = df.dropna(subset=["Garis_Kemiskinan"])
+            df = pd.read_excel(os.path.join(folder, fn), header=None, skiprows=4)
+            # kolom 0=Provinsi, 1=Kota Sem1, 2=Kota Sem2, 4=Desa Sem1, 5=Desa Sem2
+            df = df.iloc[:, [0, 1, 2, 4, 5]].copy()
+            df.columns = ["Provinsi", "Kota_S1", "Kota_S2", "Desa_S1", "Desa_S2"]
+            df = df.dropna(subset=["Provinsi"])
+            df["Provinsi"] = df["Provinsi"].astype(str).apply(_normalize_prov)
             df = df[df["Provinsi"] != "Indonesia"]
+            for c in ["Kota_S1", "Kota_S2", "Desa_S1", "Desa_S2"]:
+                df[c] = df[c].apply(_to_float_id)
+            # Rata-rata semua semester (kota + desa)
+            df["Garis_Kemiskinan"] = df[["Kota_S1", "Kota_S2", "Desa_S1", "Desa_S2"]].mean(axis=1)
+            df = df.dropna(subset=["Garis_Kemiskinan"])
+            df["Tahun"] = tahun
             frames.append(df[["Provinsi", "Tahun", "Garis_Kemiskinan"]])
         except Exception as e:
             print(f"\n   WARNING – {fn}: {e}")
@@ -1142,7 +1156,7 @@ def load_garis_kemiskinan() -> pd.DataFrame:
         return pd.DataFrame()
     result = pd.concat(frames, ignore_index=True)
     result = result.drop_duplicates(["Provinsi", "Tahun"])
-    print(f"{len(result)} baris")
+    print(f"{len(result)} baris ({result['Tahun'].min()}-{result['Tahun'].max()})")
     return result
 
 
@@ -1231,40 +1245,35 @@ def load_urbanisasi() -> pd.DataFrame:
 
 
 def load_akses_air() -> pd.DataFrame:
-    """[22] Akses Air Bersih per Provinsi (BPS, %)."""
-    print("  [22/33] Akses Air Bersih per Provinsi...", end=" ")
+    """[21] Akses Air Minum Layak per Provinsi (BPS xlsx, %).
+    Format: 3 header rows, data from row 3.
+    Cols: 38 Provinsi | Perkotaan | Perdesaan | Perkotaan+Perdesaan
+    Kita ambil kolom Total (Perkotaan+Perdesaan).
+    """
+    print("  [21/33] Akses Air Bersih per Provinsi...", end=" ")
     folder = os.path.join(BASE, "domestic_baru", "Akses_Air_Bersih")
     if not os.path.exists(folder):
         print("GAGAL – folder tidak ada")
         return pd.DataFrame()
     frames = []
     for fn in os.listdir(folder):
-        if not fn.lower().endswith(".csv"):
+        if not fn.lower().endswith((".xlsx", ".xls")):
             continue
         tahun_match = re.search(r"(\d{4})", fn)
         if not tahun_match:
             continue
         tahun = int(tahun_match.group(1))
         try:
-            df = pd.read_csv(os.path.join(folder, fn), header=0, dtype=str)
-            # Asumsi: kolom 0 = Provinsi, cari kolom dengan "Akses Air Minum" / "Air Layak"
-            if "Provinsi" not in df.columns:
-                continue
-            pct_col = None
-            for c in df.columns:
-                if "Akses" in c or "Air Minum" in c or "Air Layak" in c:
-                    pct_col = c
-                    break
-            if pct_col is None:
-                continue
-            df = df[["Provinsi", pct_col]].copy()
+            df = pd.read_excel(os.path.join(folder, fn), header=None, skiprows=3)
+            # kolom 0=Provinsi, 3=Total (Perkotaan+Perdesaan)
+            df = df.iloc[:, [0, 3]].copy()
             df.columns = ["Provinsi", "Pct_Akses_Air_Bersih"]
-            df = df.dropna(subset=["Provinsi", "Pct_Akses_Air_Bersih"])
-            df["Provinsi"] = df["Provinsi"].apply(_normalize_prov)
-            df["Pct_Akses_Air_Bersih"] = df["Pct_Akses_Air_Bersih"].apply(_to_float_id)
-            df["Tahun"] = tahun
-            df = df.dropna(subset=["Pct_Akses_Air_Bersih"])
+            df = df.dropna(subset=["Provinsi"])
+            df["Provinsi"] = df["Provinsi"].astype(str).apply(_normalize_prov)
             df = df[df["Provinsi"] != "Indonesia"]
+            df["Pct_Akses_Air_Bersih"] = df["Pct_Akses_Air_Bersih"].apply(_to_float_id)
+            df = df.dropna(subset=["Pct_Akses_Air_Bersih"])
+            df["Tahun"] = tahun
             frames.append(df[["Provinsi", "Tahun", "Pct_Akses_Air_Bersih"]])
         except Exception as e:
             print(f"\n   WARNING – {fn}: {e}")
@@ -1273,53 +1282,73 @@ def load_akses_air() -> pd.DataFrame:
         return pd.DataFrame()
     result = pd.concat(frames, ignore_index=True)
     result = result.drop_duplicates(["Provinsi", "Tahun"])
-    print(f"{len(result)} baris")
+    print(f"{len(result)} baris ({result['Tahun'].min()}-{result['Tahun'].max()})")
     return result
 
 
 def load_konsumsi_protein() -> pd.DataFrame:
-    """[23] Konsumsi Protein per Kapita per Provinsi (BPS, gram/hari)."""
-    print("  [23/33] Konsumsi Protein per Kapita...", end=" ")
+    """[22] Konsumsi Protein per Kapita Nasional (BPS xls, gram/hari).
+    Data nasional (bukan per-provinsi), years as columns (1990-2025).
+    Kita ambil baris 'termasuk estimasi kasar konsumsi makanan jadi' (lebih lengkap).
+    Return: DataFrame [Tahun, Protein_gram_per_hari] (tanpa Provinsi, akan di-join nasional di panel).
+    """
+    print("  [22/33] Konsumsi Protein per Kapita (nasional)...", end=" ")
     folder = os.path.join(BASE, "domestic_baru", "Konsumsi_Protein")
     if not os.path.exists(folder):
         print("GAGAL – folder tidak ada")
         return pd.DataFrame()
     frames = []
     for fn in os.listdir(folder):
-        if not fn.lower().endswith(".csv"):
+        if not fn.lower().endswith((".xls", ".xlsx")):
             continue
-        tahun_match = re.search(r"(\d{4})", fn)
-        if not tahun_match:
-            continue
-        tahun = int(tahun_match.group(1))
         try:
-            df = pd.read_csv(os.path.join(folder, fn), header=0, dtype=str)
-            if "Provinsi" not in df.columns:
-                continue
-            prot_col = None
-            for c in df.columns:
-                if "Protein" in c or "protein" in c:
-                    prot_col = c
+            df = pd.read_excel(os.path.join(folder, fn), header=None, skiprows=1)
+            # Row 0 after skip: header row with "Indikator Terpilih", "Unit", years...
+            # Row 1: sub-headers (Maret/September)
+            # Row 2+: data rows
+            # Baris row 3 (index 2 setelah skiprows=1) = protein termasuk makanan jadi
+            headers = df.iloc[0].tolist()
+            # Cari baris yang mengandung "termasuk estimasi" (lebih lengkap)
+            protein_row = None
+            for idx in range(2, len(df)):
+                cell = str(df.iloc[idx, 0]) if pd.notna(df.iloc[idx, 0]) else ""
+                if "termasuk estimasi" in cell.lower():
+                    protein_row = idx
                     break
-            if prot_col is None:
+            if protein_row is None:
+                # Fallback: ambil baris pertama yang mengandung "Protein" (bukan "Kalori")
+                for idx in range(2, len(df)):
+                    cell = str(df.iloc[idx, 0]) if pd.notna(df.iloc[idx, 0]) else ""
+                    if "protein" in cell.lower() and "tidak" not in cell.lower():
+                        protein_row = idx
+                        break
+            if protein_row is None:
+                print(f"\n   WARNING – {fn}: baris protein tidak ditemukan")
                 continue
-            df = df[["Provinsi", prot_col]].copy()
-            df.columns = ["Provinsi", "Protein_gram_per_hari"]
-            df = df.dropna(subset=["Provinsi", "Protein_gram_per_hari"])
-            df["Provinsi"] = df["Provinsi"].apply(_normalize_prov)
-            df["Protein_gram_per_hari"] = df["Protein_gram_per_hari"].apply(_to_float_id)
-            df["Tahun"] = tahun
-            df = df.dropna(subset=["Protein_gram_per_hari"])
-            df = df[df["Provinsi"] != "Indonesia"]
-            frames.append(df[["Provinsi", "Tahun", "Protein_gram_per_hari"]])
+            row_data = df.iloc[protein_row].tolist()
+            # Headers: col 0 = indicator name, col 1 = unit, col 2+ = years
+            # Tahun ada di row 1 (setelah skiprows=1), col 2+
+            year_row = df.iloc[1].tolist()
+            for col_idx in range(2, len(row_data)):
+                val = row_data[col_idx]
+                tahun_raw = year_row[col_idx]
+                if pd.isna(val) or pd.isna(tahun_raw):
+                    continue
+                try:
+                    tahun = int(float(tahun_raw))
+                except (ValueError, TypeError):
+                    continue
+                protein_val = _to_float_id(str(val))
+                if protein_val is not None and not np.isnan(protein_val):
+                    frames.append({"Tahun": tahun, "Protein_gram_per_hari": protein_val})
         except Exception as e:
             print(f"\n   WARNING – {fn}: {e}")
     if not frames:
         print("0 baris")
         return pd.DataFrame()
-    result = pd.concat(frames, ignore_index=True)
-    result = result.drop_duplicates(["Provinsi", "Tahun"])
-    print(f"{len(result)} baris")
+    result = pd.DataFrame(frames)
+    result = result.drop_duplicates("Tahun").sort_values("Tahun").reset_index(drop=True)
+    print(f"{len(result)} baris ({result['Tahun'].min()}-{result['Tahun'].max()})")
     return result
 
 
@@ -1712,15 +1741,12 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
         panel = panel.merge(akses_air, on=["Provinsi", "Tahun"], how="left")
         print(f"   [+] Akses_Air_Bersih: ditambahkan ({len(akses_air)} baris)")
 
-    # Konsumsi Protein
+    # Konsumsi Protein (data nasional, join by Tahun saja)
     if konsumsi_protein is not None and not konsumsi_protein.empty:
-        panel = panel.merge(konsumsi_protein, on=["Provinsi", "Tahun"], how="left")
-        print(f"   [+] Konsumsi_Protein: ditambahkan ({len(konsumsi_protein)} baris)")
+        panel = panel.merge(konsumsi_protein, on="Tahun", how="left")
+        print(f"   [+] Konsumsi_Protein (nasional): ditambahkan ({len(konsumsi_protein)} baris)")
 
-    # Jumlah Rumah Tangga
-    if jumlah_rumah_tangga is not None and not jumlah_rumah_tangga.empty:
-        panel = panel.merge(jumlah_rumah_tangga, on=["Provinsi", "Tahun"], how="left")
-        print(f"   [+] Jumlah_Rumah_Tangga: ditambahkan ({len(jumlah_rumah_tangga)} baris)")
+    # Jumlah Rumah Tangga - SKIP (data berupa persentase distribusi, bukan jumlah absolut)
 
     # World Bank Nasional (tidak per-provinsi, join by Tahun)
     if worldbank_nasional is not None and not worldbank_nasional.empty:
