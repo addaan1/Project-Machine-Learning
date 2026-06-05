@@ -1,0 +1,147 @@
+{% extends 'predictions/base.html' %}
+{% load static %}
+
+{% block page_title %}Perbandingan Provinsi{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+    .compare-header { text-align: center; margin-bottom: 32px; }
+    .compare-header p { color: var(--text-secondary); font-size: 15px; margin-top: 8px; }
+    .compare-controls { display: flex; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; align-items: end; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    .control-group label { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .control-group select { padding: 12px 16px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 14px; font-family: 'Inter', sans-serif; min-width: 200px; cursor: pointer; }
+    .control-group select:focus { border-color: var(--accent-neon); outline: none; box-shadow: 0 0 0 3px rgba(204,255,0,0.1); }
+    .btn-compare { padding: 12px 28px; border-radius: 12px; background: var(--accent-neon); color: #000; border: none; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.3s; font-family: 'Inter', sans-serif; }
+    .btn-compare:hover { box-shadow: 0 6px 20px rgba(204,255,0,0.4); transform: translateY(-2px); }
+    .compare-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .chart-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px; }
+    .chart-panel h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+    .chart-box { height: 400px; position: relative; }
+    .ranking-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px; }
+    .ranking-panel h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+    .ranking-list { display: flex; flex-direction: column; gap: 12px; }
+    .rank-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-color); transition: all 0.2s; }
+    .rank-item:hover { border-color: rgba(204,255,0,0.2); background: rgba(204,255,0,0.03); }
+    .rank-num { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; }
+    .rank-num.gold { background: rgba(255,215,0,0.15); color: #ffd700; }
+    .rank-num.silver { background: rgba(192,192,192,0.15); color: #c0c0c0; }
+    .rank-num.bronze { background: rgba(205,127,50,0.15); color: #cd7f32; }
+    .rank-num.normal { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
+    .rank-name { flex: 1; font-size: 14px; font-weight: 600; }
+    .rank-val { font-size: 16px; font-weight: 800; color: var(--accent-neon); }
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+    .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    .empty-state p { font-size: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="compare-header">
+    <p>Bandingkan metrik ekonomi antar provinsi Indonesia secara visual.</p>
+</div>
+
+<div class="compare-controls">
+    <div class="control-group">
+        <label>Provinsi (pilih hingga 5)</label>
+        <select id="prov1"><option value="">-- Pilih Provinsi 1 --</option></select>
+    </div>
+    <div class="control-group">
+        <label>&nbsp;</label>
+        <select id="prov2"><option value="">-- Pilih Provinsi 2 --</option></select>
+    </div>
+    <div class="control-group">
+        <label>&nbsp;</label>
+        <select id="prov3"><option value="">-- Pilih Provinsi 3 --</option></select>
+    </div>
+    <div class="control-group">
+        <label>Metrik</label>
+        <select id="metric">
+            <option value="Total_Pengeluaran">Daya Beli (Total Pengeluaran)</option>
+            <option value="UMP">Upah Minimum Provinsi</option>
+            <option value="PDRB_HargaKonstan">PDRB Per Kapita</option>
+            <option value="TPT">Tingkat Pengangguran (TPT)</option>
+            <option value="IPM">Indeks Pembangunan Manusia</option>
+            <option value="Gini_Rasio">Gini Ratio</option>
+            <option value="Garis_Kemiskinan">Garis Kemiskinan</option>
+            <option value="Pct_Penduduk_Miskin">% Penduduk Miskin</option>
+            <option value="Jumlah_Penduduk">Jumlah Penduduk</option>
+        </select>
+    </div>
+    <div class="control-group">
+        <label>&nbsp;</label>
+        <button class="btn-compare" onclick="runCompare()"><i class="fas fa-chart-line"></i> Bandingkan</button>
+    </div>
+</div>
+
+<div class="compare-grid">
+    <div class="chart-panel">
+        <h3><i class="fas fa-chart-line" style="color:var(--accent-neon)"></i> Tren Perbandingan</h3>
+        <div class="chart-box"><canvas id="compareChart"></canvas></div>
+    </div>
+    <div class="ranking-panel">
+        <h3><i class="fas fa-trophy" style="color:#ffd700"></i> Ranking</h3>
+        <div class="ranking-list" id="rankingList">
+            <div class="empty-state">
+                <i class="fas fa-arrow-up"></i>
+                <p>Pilih provinsi dan metrik, lalu klik "Bandingkan"</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROVINCES = ["Aceh","Bali","Banten","Bengkulu","DI Yogyakarta","DKI Jakarta","Gorontalo","Jambi","Jawa Barat","Jawa Tengah","Jawa Timur","Kalimantan Barat","Kalimantan Selatan","Kalimantan Tengah","Kalimantan Timur","Kalimantan Utara","Kepulauan Bangka Belitung","Kepulauan Riau","Lampung","Maluku","Maluku Utara","Nusa Tenggara Barat","Nusa Tenggara Timur","Papua","Papua Barat","Papua Barat Daya","Papua Pegunungan","Papua Selatan","Papua Tengah","Riau","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tengah","Sulawesi Tenggara","Sulawesi Utara","Sumatera Barat","Sumatera Selatan","Sumatera Utara"];
+const COLORS = ['#ccff00','#3b82f6','#a855f7','#f97316','#ec4899'];
+const YEARS = [2021,2022,2023,2024,2025];
+
+// Fill dropdowns
+['prov1','prov2','prov3'].forEach(id => {
+    const sel = document.getElementById(id);
+    PROVINCES.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o); });
+});
+
+let chart = null;
+
+function runCompare() {
+    const provs = ['prov1','prov2','prov3'].map(id => document.getElementById(id).value).filter(Boolean);
+    const metric = document.getElementById('metric').value;
+    if (provs.length === 0) { alert('Pilih minimal 1 provinsi'); return; }
+
+    // Generate simulated data (in real app, this would come from API)
+    const datasets = provs.map((prov, i) => {
+        const base = Math.random() * 500000 + 500000;
+        const data = YEARS.map((y, j) => base + j * (Math.random() * 50000 - 10000));
+        return { label: prov, data, borderColor: COLORS[i], backgroundColor: COLORS[i] + '20', tension: 0.4, pointRadius: 6, pointHoverRadius: 8, borderWidth: 3 };
+    });
+
+    if (chart) chart.destroy();
+    const ctx = document.getElementById('compareChart').getContext('2d');
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: YEARS, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#9a9ae', font: { weight: 600 } } } },
+            scales: {
+                x: { ticks: { color: '#9a9ae' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#9a9ae', callback: v => 'Rp ' + v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            },
+            interaction: { intersect: false, mode: 'index' }
+        }
+    });
+
+    // Ranking (last year values)
+    const ranked = provs.map((prov, i) => ({ name: prov, value: datasets[i].data[datasets[i].data.length - 1] }))
+        .sort((a, b) => b.value - a.value);
+    const list = document.getElementById('rankingList');
+    list.innerHTML = ranked.map((r, i) => {
+        const cls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'normal';
+        return `<div class="rank-item"><div class="rank-num ${cls}">${i + 1}</div><div class="rank-name">${r.name}</div><div class="rank-val">Rp ${Math.round(r.value).toLocaleString()}</div></div>`;
+    }).join('');
+}
+</script>
+{% endblock %}

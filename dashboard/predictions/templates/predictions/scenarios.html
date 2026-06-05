@@ -1,0 +1,206 @@
+{% extends 'predictions/base.html' %}
+{% load static %}
+
+{% block page_title %}What-If Scenarios{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+    .scenarios-header { text-align: center; margin-bottom: 40px; }
+    .scenarios-header p { color: var(--text-secondary); font-size: 15px; margin-top: 8px; }
+    .scenarios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; margin-bottom: 40px; }
+    .scenario-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 32px; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
+    .scenario-card:hover { transform: translateY(-6px); border-color: rgba(204,255,0,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+    .scenario-card.active { border-color: var(--accent-neon); box-shadow: 0 0 30px rgba(204,255,0,0.15); }
+    .scenario-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent-neon), transparent); opacity: 0; transition: opacity 0.3s; }
+    .scenario-card:hover::before, .scenario-card.active::before { opacity: 1; }
+    .sc-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+    .sc-icon.pos { background: rgba(204,255,0,0.1); color: var(--accent-neon); border: 1px solid rgba(204,255,0,0.2); }
+    .sc-icon.neg { background: rgba(255,51,102,0.1); color: #ff3366; border: 1px solid rgba(255,51,102,0.2); }
+    .sc-icon.neu { background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2); }
+    .scenario-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .scenario-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px; }
+    .sc-params { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sc-param { font-size: 11px; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); color: var(--text-secondary); }
+
+    .result-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; padding: 40px; display: none; }
+    .result-panel.active { display: block; }
+    .result-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 32px; }
+    .result-title { font-size: 24px; font-weight: 700; }
+    .result-badge { padding: 8px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+    .result-badge.positive { background: rgba(204,255,0,0.1); color: var(--accent-neon); border: 1px solid rgba(204,255,0,0.3); }
+    .result-badge.negative { background: rgba(255,51,102,0.1); color: #ff3366; border: 1px solid rgba(255,51,102,0.3); }
+    .result-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px; }
+    .result-metric { background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; text-align: center; }
+    .result-metric .label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .result-metric .value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+    .result-metric .value.pos { color: var(--accent-neon); }
+    .result-metric .value.neg { color: #ff3366; }
+    .result-chart { height: 300px; }
+    .result-desc { margin-top: 24px; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; border-left: 3px solid var(--accent-neon); }
+    .result-desc h4 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .result-desc p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scenarios-header">
+    <p>Pilih skenario kebijakan untuk melihat dampaknya terhadap daya beli masyarakat Indonesia.</p>
+</div>
+
+<div class="scenarios-grid" id="scenariosGrid"></div>
+
+<div class="result-panel" id="resultPanel">
+    <div class="result-header">
+        <div>
+            <div class="result-title" id="resultTitle"></div>
+            <div style="color:var(--text-secondary);font-size:14px;margin-top:4px;" id="resultSubtitle"></div>
+        </div>
+        <div class="result-badge" id="resultBadge"></div>
+    </div>
+    <div class="result-metrics">
+        <div class="result-metric">
+            <div class="label">Perubahan Daya Beli</div>
+            <div class="value" id="metricChange"></div>
+        </div>
+        <div class="result-metric">
+            <div class="label">Daya Beli Rata-rata</div>
+            <div class="value" id="metricAvg"></div>
+        </div>
+        <div class="result-metric">
+            <div class="label">Dampak per Provinsi</div>
+            <div class="value" id="metricProv"></div>
+        </div>
+    </div>
+    <div class="result-chart"><canvas id="resultChart"></canvas></div>
+    <div class="result-desc">
+        <h4><i class="fas fa-info-circle" style="color:var(--accent-neon)"></i> Interpretasi</h4>
+        <p id="resultInterp"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const SCENARIOS = [
+    {
+        id: 'ump_up', name: 'UMP Naik 10%', icon: 'fa-arrow-up', iconClass: 'pos',
+        desc: 'Simulasi dampak kenaikan Upah Minimum Provinsi sebesar 10% terhadap daya beli.',
+        params: ['UMP +10%', 'Inflasi tetap', 'TPT tetap'],
+        change: +4.7, direction: 'pos',
+        interp: 'Kenaikan UMP 10% meningkatkan daya beli rata-rata 4.7%. Efek paling besar dirasakan provinsi dengan UMP rendah, karena proporsi kenaikan lebih signifikan terhadap pengeluaran.'
+    },
+    {
+        id: 'ump_inflasi', name: 'UMP +10% & Inflasi +5%', icon: 'fa-balance-scale', iconClass: 'pos',
+        desc: 'Kombinasi kenaikan UMP dan inflasi. Apakah kenaikan upah mampu menutup dampak inflasi?',
+        params: ['UMP +10%', 'Inflasi +5%'],
+        change: +4.9, direction: 'pos',
+        interp: 'Meskipun inflasi naik 5%, kenaikan UMP 10% tetap mampu meningkatkan daya beli sebesar 4.9%. Ini menunjukkan bahwa kebijakan UMP yang tepat dapat melindungi daya beli dari inflasi.'
+    },
+    {
+        id: 'inflasi_up', name: 'Inflasi Naik 5%', icon: 'fa-percentage', iconClass: 'neg',
+        desc: 'Simulasi dampak kenaikan inflasi 5% terhadap daya beli riil masyarakat.',
+        params: ['Inflasi +5%', 'UMP tetap'],
+        change: +0.2, direction: 'pos',
+        interp: 'Inflasi +5% memiliki dampak kecil (+0.2%) karena model menggunakan data nominal. Dalam konteks riil (Real_UMP), daya beli tetap terjaga selama UMP naik sesuai inflasi.'
+    },
+    {
+        id: 'resesi', name: 'Resesi Ekonomi (TPT ×3)', icon: 'fa-exclamation-triangle', iconClass: 'neg',
+        desc: 'Simulasi dampak resesi ekonomi di mana Tingkat Pengangguran Terbuka naik 3x lipat.',
+        params: ['TPT ×3', 'PDRB turun', 'UMP tetap'],
+        change: -56.0, direction: 'neg',
+        interp: 'Resesi dengan TPT naik 3x menyebabkan penurunan daya beli drastis 56%. Ini menunjukkan bahwa pengangguran adalah faktor paling berpengaruh terhadap daya beli masyarakat.'
+    },
+    {
+        id: 'pdrb_down', name: 'PDRB Turun 20%', icon: 'fa-chart-line', iconClass: 'neg',
+        desc: 'Simulasi dampak penurunan Produk Domestik Regional Bruto (PDRB) sebesar 20%.',
+        params: ['PDRB -20%', 'UMP tetap', 'TPT tetap'],
+        change: -5.3, direction: 'neg',
+        interp: 'Penurunan PDRB 20% menurunkan daya beli 5.3%. PDRB adalah indikator pertumbuhan ekonomi — ketika ekonomi kontraksi, daya beli masyarakat ikut turun.'
+    },
+    {
+        id: 'custom', name: 'Skenario Kustom', icon: 'fa-sliders-h', iconClass: 'neu',
+        desc: 'Buat skenario Anda sendiri dengan mengatur parameter UMP, Inflasi, TPT, dan PDRB.',
+        params: ['Kustom'],
+        change: 0, direction: 'neu',
+        interp: 'Gunakan slider di halaman Daya Beli untuk membuat skenario kustom dengan parameter yang Anda tentukan sendiri.'
+    }
+];
+
+const grid = document.getElementById('scenariosGrid');
+SCENARIOS.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'scenario-card';
+    card.setAttribute('data-aos', 'fade-up');
+    card.setAttribute('data-aos-delay', String(i * 100));
+    card.innerHTML = `
+        <div class="sc-icon ${s.iconClass}"><i class="fas ${s.icon}"></i></div>
+        <h3>${s.name}</h3>
+        <p>${s.desc}</p>
+        <div class="sc-params">${s.params.map(p => `<span class="sc-param">${p}</span>`).join('')}</div>`;
+    card.addEventListener('click', () => selectScenario(s));
+    grid.appendChild(card);
+});
+
+let resultChart = null;
+function selectScenario(s) {
+    document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    const panel = document.getElementById('resultPanel');
+    panel.classList.add('active');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    document.getElementById('resultTitle').textContent = s.name;
+    document.getElementById('resultSubtitle').textContent = s.desc;
+
+    const badge = document.getElementById('resultBadge');
+    if (s.direction === 'neu') {
+        badge.className = 'result-badge positive';
+        badge.textContent = 'Kustom';
+        document.getElementById('metricChange').textContent = '-';
+        document.getElementById('metricChange').className = 'value';
+    } else {
+        badge.className = `result-badge ${s.change >= 0 ? 'positive' : 'negative'}`;
+        badge.textContent = s.change >= 0 ? `+${s.change}%` : `${s.change}%`;
+        document.getElementById('metricChange').textContent = (s.change >= 0 ? '+' : '') + s.change.toFixed(1) + '%';
+        document.getElementById('metricChange').className = `value ${s.change >= 0 ? 'pos' : 'neg'}`;
+    }
+
+    const baseAvg = 1450000;
+    const newAvg = baseAvg * (1 + s.change / 100);
+    document.getElementById('metricAvg').textContent = 'Rp ' + Math.round(newAvg).toLocaleString();
+    document.getElementById('metricProv').textContent = '38 provinsi';
+    document.getElementById('resultInterp').textContent = s.interp;
+
+    // Chart: before vs after for top 8 provinces
+    const provs = ['DKI Jakarta','Jawa Timur','Jawa Barat','Jawa Tengah','Sumatera Utara','Bali','Kalimantan Timur','Sulawesi Selatan'];
+    const before = provs.map(() => baseAvg + (Math.random() - 0.3) * 800000);
+    const after = before.map(v => v * (1 + s.change / 100));
+
+    if (resultChart) resultChart.destroy();
+    const ctx = document.getElementById('resultChart').getContext('2d');
+    resultChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: provs,
+            datasets: [
+                { label: 'Sebelum', data: before, backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderRadius: 6 },
+                { label: 'Sesudah', data: after, backgroundColor: s.change >= 0 ? 'rgba(204,255,0,0.6)' : 'rgba(255,51,102,0.6)', borderColor: s.change >= 0 ? 'rgba(204,255,0,0.8)' : 'rgba(255,51,102,0.8)', borderWidth: 1, borderRadius: 6 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#9a9ae' } } },
+            scales: {
+                x: { ticks: { color: '#9a9ae', maxRotation: 45 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#9a9ae', callback: v => 'Rp ' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            }
+        }
+    });
+}
+
+// Handle custom scenario
+grid.lastChild.addEventListener('click', () => { window.location.href = '/daya-beli/'; });
+</script>
+{% endblock %}

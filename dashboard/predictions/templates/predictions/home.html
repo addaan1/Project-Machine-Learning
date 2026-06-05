@@ -1,0 +1,562 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoDash — Prediksi Inflasi & Daya Beli Indonesia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --bg-panel: #111116;
+            --bg-card: rgba(22, 22, 28, 0.6);
+            --accent: #ccff00;
+            --accent-glow: rgba(204, 255, 0, 0.5);
+            --accent-dim: rgba(204, 255, 0, 0.1);
+            --text-primary: #f2f2f5;
+            --text-secondary: #9a9cae;
+            --border: rgba(255, 255, 255, 0.06);
+            --positive: #ccff00;
+            --negative: #ff3366;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text-primary); overflow-x: hidden; }
+        a { text-decoration: none; color: inherit; }
+
+        /* ===== NAVBAR ===== */
+        .lp-nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 60px; height: 72px;
+            background: rgba(10,10,12,0.85); backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s;
+        }
+        .lp-nav.scrolled { background: rgba(10,10,12,0.95); box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+        .lp-logo { display: flex; align-items: center; gap: 12px; }
+        .lp-logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), #88ff00); border-radius: 10px; box-shadow: 0 0 20px var(--accent-glow); }
+        .lp-logo h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+        .lp-nav-links { display: flex; gap: 8px; list-style: none; }
+        .lp-nav-links a { padding: 10px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; color: var(--text-secondary); transition: all 0.25s; }
+        .lp-nav-links a:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .lp-nav-links a.nav-cta { background: var(--accent); color: #000; font-weight: 700; box-shadow: 0 4px 15px rgba(204,255,0,0.3); }
+        .lp-nav-links a.nav-cta:hover { box-shadow: 0 6px 25px rgba(204,255,0,0.5); transform: translateY(-1px); }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center;
+            position: relative; padding: 120px 40px 80px; overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 50% 30%, rgba(204,255,0,0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 20% 80%, rgba(0,100,255,0.05) 0%, transparent 50%);
+        }
+        #particles-canvas { position: absolute; inset: 0; pointer-events: none; }
+        .hero-content { position: relative; z-index: 2; max-width: 900px; }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; border-radius: 24px;
+            background: var(--accent-dim); border: 1px solid rgba(204,255,0,0.2);
+            font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 32px;
+        }
+        .hero-badge i { font-size: 12px; }
+        .hero h1 {
+            font-size: clamp(40px, 6vw, 72px); font-weight: 900; line-height: 1.05;
+            letter-spacing: -2px; margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero h1 .accent { -webkit-text-fill-color: var(--accent); text-shadow: 0 0 40px var(--accent-glow); }
+        .hero p { font-size: 20px; color: var(--text-secondary); max-width: 640px; margin: 0 auto 48px; line-height: 1.6; }
+        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn-hero {
+            padding: 18px 36px; border-radius: 16px; font-size: 16px; font-weight: 700;
+            display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s;
+        }
+        .btn-hero.primary { background: var(--accent); color: #000; box-shadow: 0 8px 30px rgba(204,255,0,0.35); }
+        .btn-hero.primary:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(204,255,0,0.5); }
+        .btn-hero.secondary { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border); }
+        .btn-hero.secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-3px); }
+
+        /* ===== SECTIONS COMMON ===== */
+        .section { padding: 120px 60px; position: relative; }
+        .section-inner { max-width: 1200px; margin: 0 auto; }
+        .section-header { text-align: center; margin-bottom: 64px; }
+        .section-header .tag {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            background: var(--accent-dim); border: 1px solid rgba(204,255,0,0.2);
+            color: var(--accent); font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
+        }
+        .section-header h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+        .section-header p { font-size: 17px; color: var(--text-secondary); max-width: 600px; margin: 0 auto; line-height: 1.6; }
+
+        /* ===== KPI STATS ===== */
+        .stats-section { background: linear-gradient(180deg, transparent 0%, rgba(204,255,0,0.02) 50%, transparent 100%); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .stat-card {
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 24px;
+            padding: 40px 32px; text-align: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .stat-card:hover { transform: translateY(-8px); border-color: rgba(204,255,0,0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .stat-icon { width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .stat-icon.green { background: rgba(204,255,0,0.1); color: var(--accent); border: 1px solid rgba(204,255,0,0.2); }
+        .stat-icon.blue { background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2); }
+        .stat-icon.purple { background: rgba(168,85,247,0.1); color: #a855f7; border: 1px solid rgba(168,85,247,0.2); }
+        .stat-icon.orange { background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid rgba(249,115,22,0.2); }
+        .stat-number { font-size: 48px; font-weight: 900; letter-spacing: -2px; color: #fff; margin-bottom: 8px; }
+        .stat-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+
+        /* ===== FEATURES ===== */
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+        .feature-card {
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 24px;
+            padding: 44px 36px; position: relative; overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .feature-card:hover { transform: translateY(-10px); border-color: rgba(204,255,0,0.3); box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .feature-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            opacity: 0; transition: opacity 0.4s;
+        }
+        .feature-card:hover::before { opacity: 1; }
+        .feature-icon {
+            width: 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center;
+            font-size: 28px; margin-bottom: 28px;
+        }
+        .feature-icon.f1 { background: rgba(204,255,0,0.1); color: var(--accent); border: 1px solid rgba(204,255,0,0.15); }
+        .feature-icon.f2 { background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.15); }
+        .feature-icon.f3 { background: rgba(168,85,247,0.1); color: #a855f7; border: 1px solid rgba(168,85,247,0.15); }
+        .feature-icon.f4 { background: rgba(249,115,22,0.1); color: #f97316; border: 1px solid rgba(249,115,22,0.15); }
+        .feature-icon.f5 { background: rgba(236,72,153,0.1); color: #ec4899; border: 1px solid rgba(236,72,153,0.15); }
+        .feature-icon.f6 { background: rgba(20,184,166,0.1); color: #14b8a6; border: 1px solid rgba(20,184,166,0.15); }
+        .feature-card h3 { font-size: 22px; font-weight: 700; margin-bottom: 14px; letter-spacing: -0.5px; }
+        .feature-card p { font-size: 15px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 24px; }
+        .feature-link { font-size: 14px; font-weight: 600; color: var(--accent); display: inline-flex; align-items: center; gap: 6px; transition: gap 0.3s; }
+        .feature-card:hover .feature-link { gap: 12px; }
+
+        /* ===== TECH STACK ===== */
+        .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .tech-item {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+            padding: 28px; text-align: center;
+            transition: all 0.3s;
+        }
+        .tech-item:hover { border-color: rgba(204,255,0,0.3); transform: translateY(-4px); }
+        .tech-item i { font-size: 32px; margin-bottom: 14px; color: var(--accent); }
+        .tech-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .tech-item p { font-size: 12px; color: var(--text-secondary); }
+
+        /* ===== TEAM ===== */
+        .team-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 24px; }
+        .team-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+            padding: 36px 20px; text-align: center;
+            transition: all 0.3s;
+        }
+        .team-card:hover { border-color: rgba(204,255,0,0.3); transform: translateY(-6px); }
+        .team-avatar {
+            width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px;
+            background: linear-gradient(135deg, var(--accent-dim), rgba(59,130,246,0.15));
+            border: 2px solid rgba(204,255,0,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; font-weight: 800; color: var(--accent);
+        }
+        .team-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .team-card p { font-size: 13px; color: var(--text-secondary); }
+
+        /* ===== FOOTER ===== */
+        .lp-footer {
+            padding: 60px 60px 30px; border-top: 1px solid var(--border);
+            background: rgba(0,0,0,0.3);
+        }
+        .footer-inner { max-width: 1200px; margin: 0 auto; }
+        .footer-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 48px; flex-wrap: wrap; gap: 40px; }
+        .footer-brand h3 { font-size: 24px; font-weight: 800; margin-bottom: 12px; }
+        .footer-brand p { font-size: 14px; color: var(--text-secondary); max-width: 320px; line-height: 1.6; }
+        .footer-links h4 { font-size: 14px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+        .footer-links ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .footer-links a { font-size: 14px; color: var(--text-secondary); transition: color 0.2s; }
+        .footer-links a:hover { color: var(--accent); }
+        .footer-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+        .footer-social { display: flex; gap: 12px; }
+        .footer-social a { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); transition: all 0.2s; }
+        .footer-social a:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(204,255,0,0.3); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .team-grid { grid-template-columns: repeat(3, 1fr); }
+            .tech-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .lp-nav { padding: 0 24px; }
+            .lp-nav-links { display: none; }
+            .section { padding: 80px 24px; }
+            .hero { padding: 100px 24px 60px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .features-grid { grid-template-columns: 1fr; }
+            .team-grid { grid-template-columns: repeat(2, 1fr); }
+            .tech-grid { grid-template-columns: 1fr 1fr; }
+            .footer-top { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="lp-nav" id="mainNav">
+        <div class="lp-logo">
+            <div class="lp-logo-icon"></div>
+            <h2>EcoDash</h2>
+        </div>
+        <ul class="lp-nav-links">
+            <li><a href="#features">Fitur</a></li>
+            <li><a href="#stats">Statistik</a></li>
+            <li><a href="#team">Tim</a></li>
+            <li><a href="{% url 'landing' %}" class="nav-cta">Dashboard <i class="fas fa-arrow-right"></i></a></li>
+        </ul>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero" id="hero">
+        <div class="hero-bg"></div>
+        <canvas id="particles-canvas"></canvas>
+        <div class="hero-content">
+            <div class="hero-badge" data-aos="fade-down" data-aos-delay="200">
+                <i class="fas fa-chart-line"></i>
+                Machine Learning &mdash; Universitas Airlangga
+            </div>
+            <h1 data-aos="fade-up" data-aos-delay="300">
+                Prediksi <span class="accent">Inflasi</span> &<br>Analisis <span class="accent">Daya Beli</span>
+            </h1>
+            <p data-aos="fade-up" data-aos-delay="400">
+                Sistem prediksi inflasi bulanan menggunakan LSTM dengan 44 fitur time-series, 
+                dan analisis dampaknya terhadap daya beli masyarakat di 38 provinsi Indonesia.
+            </p>
+            <div class="hero-buttons" data-aos="fade-up" data-aos-delay="500">
+                <a href="{% url 'landing' %}" class="btn-hero primary">
+                    <i class="fas fa-rocket"></i> Buka Dashboard
+                </a>
+                <a href="#features" class="btn-hero secondary">
+                    <i class="fas fa-play"></i> Pelajari Lebih Lanjut
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- KPI STATS -->
+    <section class="section stats-section" id="stats">
+        <div class="section-inner">
+            <div class="section-header" data-aos="fade-up">
+                <div class="tag">Performa Model</div>
+                <h2>Angka yang Berbicara</h2>
+                <p>Dua model machine learning yang telah dilatih dan dievaluasi dengan data historis Indonesia.</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-icon green"><i class="fas fa-bullseye"></i></div>
+                    <div class="stat-number"><span class="counter" data-target="0.18">0</span>%</div>
+                    <div class="stat-label">MAE Forecasting LSTM</div>
+                </div>
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-icon blue"><i class="fas fa-chart-bar"></i></div>
+                    <div class="stat-number"><span class="counter" data-target="0.91">0</span></div>
+                    <div class="stat-label">Test R&sup2; Ridge Regression</div>
+                </div>
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-icon purple"><i class="fas fa-map-marked-alt"></i></div>
+                    <div class="stat-number"><span class="counter" data-target="38">0</span></div>
+                    <div class="stat-label">Provinsi Indonesia</div>
+                </div>
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="stat-icon orange"><i class="fas fa-database"></i></div>
+                    <div class="stat-number"><span class="counter" data-target="23">0</span>+</div>
+                    <div class="stat-label">Dataset Terintegrasi</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="features">
+        <div class="section-inner">
+            <div class="section-header" data-aos="fade-up">
+                <div class="tag">Fitur Unggulan</div>
+                <h2>Apa yang Bisa Dilakukan?</h2>
+                <p>Sistem ini dirancang untuk membantu analisis kebijakan ekonomi berbasis data.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="feature-icon f1"><i class="fas fa-brain"></i></div>
+                    <h3>Forecasting Inflasi</h3>
+                    <p>Prediksi inflasi bulanan 1-2 bulan ke depan menggunakan LSTM dengan 44 fitur time-series dari data domestik, internasional, dan 26 komoditas global.</p>
+                    <a href="{% url 'forecasting' %}" class="feature-link">Lihat Prediksi <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="feature-icon f2"><i class="fas fa-sliders-h"></i></div>
+                    <h3>Simulasi Daya Beli</h3>
+                    <p>Simulasi interaktif dampak perubahan inflasi, UMP, TPT, dan PDRB terhadap daya beli per kapita di setiap provinsi Indonesia.</p>
+                    <a href="{% url 'daya_beli' %}" class="feature-link">Mulai Simulasi <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="feature-icon f3"><i class="fas fa-map-compare"></i></div>
+                    <h3>Bandingkan Provinsi</h3>
+                    <p>Perbandingan metrik ekonomi antar provinsi: UMP, daya beli, PDRB, TPT, IPM, Gini Ratio, dan lainnya secara visual.</p>
+                    <a href="{% url 'compare' %}" class="feature-link">Bandingkan <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="feature-icon f4"><i class="fas fa-chart-pie"></i></div>
+                    <h3>Dataset Explorer</h3>
+                    <p>Jelajahi 23 dataset dari BPS, Bank Indonesia, World Bank, dan sumber lainnya. Lihat preview chart dan download data.</p>
+                    <a href="{% url 'datasets' %}" class="feature-link">Eksplor Data <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
+                    <div class="feature-icon f5"><i class="fas fa-lightbulb"></i></div>
+                    <h3>What-If Scenarios</h3>
+                    <p>Simulasi skenario kebijakan: "Bagaimana jika UMP naik 10%?", "Resesi ekonomi?", "Inflasi +5%?".</p>
+                    <a href="{% url 'scenarios' %}" class="feature-link">Coba Skenario <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="feature-card" data-aos="fade-up" data-aos-delay="600">
+                    <div class="feature-icon f6"><i class="fas fa-chart-area"></i></div>
+                    <h3>Visualisasi Interaktif</h3>
+                    <p>Chart interaktif yang bisa di-hover, di-zoom, dan di-filter. Mendukung eksplorasi data secara mendalam.</p>
+                    <a href="{% url 'landing' %}" class="feature-link">Lihat Dashboard <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TECH STACK -->
+    <section class="section" style="background: linear-gradient(180deg, transparent, rgba(204,255,0,0.02), transparent);">
+        <div class="section-inner">
+            <div class="section-header" data-aos="fade-up">
+                <div class="tag">Teknologi</div>
+                <h2>Tech Stack</h2>
+                <p>Dibangun dengan teknologi modern untuk performa dan skalabilitas.</p>
+            </div>
+            <div class="tech-grid">
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="100">
+                    <i class="fab fa-python"></i>
+                    <h4>Python</h4>
+                    <p>Backend & ML</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="200">
+                    <i class="fas fa-fire"></i>
+                    <h4>PyTorch</h4>
+                    <p>LSTM Model</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="300">
+                    <i class="fas fa-cogs"></i>
+                    <h4>Scikit-learn</h4>
+                    <p>Ridge & XGBoost</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="400">
+                    <i class="fas fa-chart-line"></i>
+                    <h4>Chart.js</h4>
+                    <p>Visualisasi</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="500">
+                    <i class="fab fa-react"></i>
+                    <h4>Django</h4>
+                    <p>Web Framework</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="600">
+                    <i class="fas fa-database"></i>
+                    <h4>Pandas</h4>
+                    <p>Data Pipeline</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="700">
+                    <i class="fas fa-globe"></i>
+                    <h4>World Bank API</h4>
+                    <p>Auto Data Source</p>
+                </div>
+                <div class="tech-item" data-aos="fade-up" data-aos-delay="800">
+                    <i class="fas fa-layer-group"></i>
+                    <h4>PanelOLS</h4>
+                    <p>Econometrics</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TEAM -->
+    <section class="section" id="team">
+        <div class="section-inner">
+            <div class="section-header" data-aos="fade-up">
+                <div class="tag">Tim Pengembang</div>
+                <h2>Kelompok E</h2>
+                <p>Machine Learning SD-A1 &mdash; Universitas Airlangga</p>
+            </div>
+            <div class="team-grid">
+                <div class="team-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="team-avatar">MR</div>
+                    <h4>Muhammad Rajif Al Farikhi</h4>
+                    <p>162112133008</p>
+                </div>
+                <div class="team-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="team-avatar">SA</div>
+                    <h4>Sahrul Adicandra Effendy</h4>
+                    <p>164231013</p>
+                </div>
+                <div class="team-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="team-avatar">SD</div>
+                    <h4>Semaya David Petroes Putra</h4>
+                    <p>164231048</p>
+                </div>
+                <div class="team-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="team-avatar">AF</div>
+                    <h4>Adrina Firda Marwah</h4>
+                    <p>164231087</p>
+                </div>
+                <div class="team-card" data-aos="fade-up" data-aos-delay="500">
+                    <div class="team-avatar">OA</div>
+                    <h4>Okan Athallah Maredith</h4>
+                    <p>164231088</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="lp-footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <h3>EcoDash</h3>
+                    <p>Sistem prediksi inflasi dan analisis dampaknya terhadap daya beli masyarakat Indonesia. Proyek Machine Learning Universitas Airlangga.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Navigasi</h4>
+                    <ul>
+                        <li><a href="{% url 'landing' %}">Dashboard</a></li>
+                        <li><a href="{% url 'forecasting' %}">Forecasting</a></li>
+                        <li><a href="{% url 'daya_beli' %}">Daya Beli</a></li>
+                        <li><a href="{% url 'datasets' %}">Dataset</a></li>
+                        <li><a href="{% url 'compare' %}">Perbandingan</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Sumber Data</h4>
+                    <ul>
+                        <li><a href="https://www.bps.go.id" target="_blank">BPS</a></li>
+                        <li><a href="https://www.bi.go.id" target="_blank">Bank Indonesia</a></li>
+                        <li><a href="https://data.worldbank.org" target="_blank">World Bank</a></li>
+                        <li><a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a></li>
+                        <li><a href="https://fred.stlouisfed.org" target="_blank">FRED</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Teknologi</h4>
+                    <ul>
+                        <li><a href="#">Python &amp; Django</a></li>
+                        <li><a href="#">PyTorch &amp; Scikit-learn</a></li>
+                        <li><a href="#">Chart.js</a></li>
+                        <li><a href="#">World Bank API</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; 2026 Kelompok E &mdash; Machine Learning SD-A1, Universitas Airlangga</span>
+                <div class="footer-social">
+                    <a href="#"><i class="fab fa-github"></i></a>
+                    <a href="#"><i class="fas fa-globe"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // AOS Init
+        AOS.init({ duration: 800, easing: 'ease-out-cubic', once: true, offset: 80 });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 50);
+        });
+
+        // Counter animation
+        const counters = document.querySelectorAll('.counter');
+        const animateCounter = (el) => {
+            const target = parseFloat(el.dataset.target);
+            const isDecimal = target < 1;
+            const duration = 2000;
+            const start = performance.now();
+            const step = (now) => {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = eased * target;
+                el.textContent = isDecimal ? current.toFixed(2) : Math.round(current);
+                if (progress < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { animateCounter(e.target); observer.unobserve(e.target); } });
+        }, { threshold: 0.5 });
+        counters.forEach(c => observer.observe(c));
+
+        // Particle Canvas
+        (function() {
+            const canvas = document.getElementById('particles-canvas');
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
+            const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+            resize();
+            window.addEventListener('resize', resize);
+
+            class Particle {
+                constructor() { this.reset(); }
+                reset() {
+                    this.x = Math.random() * w; this.y = Math.random() * h;
+                    this.vx = (Math.random() - 0.5) * 0.4; this.vy = (Math.random() - 0.5) * 0.4;
+                    this.r = Math.random() * 2 + 0.5; this.alpha = Math.random() * 0.4 + 0.1;
+                }
+                update() {
+                    this.x += this.vx; this.y += this.vy;
+                    if (this.x < 0 || this.x > w || this.y < 0 || this.y > h) this.reset();
+                }
+                draw() {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(204, 255, 0, ${this.alpha})`; ctx.fill();
+                }
+            }
+            for (let i = 0; i < 60; i++) particles.push(new Particle());
+            const animate = () => {
+                ctx.clearRect(0, 0, w, h);
+                particles.forEach(p => { p.update(); p.draw(); });
+                // Lines
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 150) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = `rgba(204, 255, 0, ${0.05 * (1 - dist / 150)})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(animate);
+            };
+            animate();
+        })();
+    </script>
+</body>
+</html>

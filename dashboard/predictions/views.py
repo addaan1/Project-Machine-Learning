@@ -319,3 +319,23 @@ def simulate_daya_beli(request):
         return JsonResponse({'predicted_pengeluaran': float(val)})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# --- Landing Page (new) ---
+def home_page(request):
+    return render(request, 'predictions/home.html')
+
+
+# --- Dataset Explorer ---
+def datasets_page(request):
+    return render(request, 'predictions/datasets.html')
+
+
+# --- Province Comparison ---
+def compare_page(request):
+    return render(request, 'predictions/compare.html')
+
+
+# --- What-If Scenarios ---
+def scenarios_page(request):
+    return render(request, 'predictions/scenarios.html')
