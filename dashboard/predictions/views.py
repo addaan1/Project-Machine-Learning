@@ -27,13 +27,14 @@ LSTM_MODEL = None
 LSTM_SCALER_X = None
 LSTM_SCALER_Y = None
 RIDGE_MODEL = None
+RIDGE_MODEL_BUNDLE = None
 INFLASI_PRED_MEM = None
 DATA_HISTORIS = None
 LSTM_FEATURES = None
 RATA_PENGELUARAN = 1450000
 
 def load_models():
-    global LSTM_MODEL, LSTM_SCALER_X, LSTM_SCALER_Y, RIDGE_MODEL, INFLASI_PRED_MEM, DATA_HISTORIS, LSTM_FEATURES, RATA_PENGELUARAN
+    global LSTM_MODEL, LSTM_SCALER_X, LSTM_SCALER_Y, RIDGE_MODEL, RIDGE_MODEL_BUNDLE, INFLASI_PRED_MEM, DATA_HISTORIS, LSTM_FEATURES, RATA_PENGELUARAN
     
     project_root = os.path.dirname(settings.BASE_DIR)
     models_dir = os.path.join(project_root, 'models')
@@ -46,8 +47,10 @@ def load_models():
         # Model bisa berupa pipeline langsung atau dictionary bundle
         if isinstance(raw, dict) and 'pipeline' in raw:
             RIDGE_MODEL = raw['pipeline']
+            RIDGE_MODEL_BUNDLE = raw
         else:
             RIDGE_MODEL = raw
+            RIDGE_MODEL_BUNDLE = None
             
     lstm_path = os.path.join(models_dir, 'lstm_model.pt')
     scaler_x_path = os.path.join(models_dir, 'lstm_scaler_x.pkl')
@@ -235,14 +238,46 @@ def forecasting_page(request):
 
 
 def get_regression_dummy_data(inflasi_val):
-    # Model Ridge membutuhkan: Real_UMP, TPT, PDRB_HargaKonstan, Inflasi_Rata_Tahunan, Provinsi
-    return pd.DataFrame([{
+    """
+    Bangun dummy input untuk Ridge model.
+    Menggunakan metadata dari model bundle jika tersedia, agar otomatis support fitur baru.
+    """
+    # Default base values
+    base_values = {
         'Real_UMP': 3000000.0 / (1 + inflasi_val),
         'TPT': 5.5,
         'PDRB_HargaKonstan': 500000.0,
         'Inflasi_Rata_Tahunan': inflasi_val,
-        'Provinsi': 'JAWA TIMUR'
-    }])
+        'Provinsi': 'JAWA TIMUR',
+        # World Bank features (nasional, gunakan nilai default tengah)
+        'Inflasi_WB_Annual': 3.5,  # ~inflasi normal Indonesia
+        'GDP_PerCapita_PPP': 13000.0,  # PDB per kapita tengah
+        'Pct_Unemployment_WB': 5.0,  # pengangguran normal
+        'Poverty_Headcount_Pct': 10.0,  # kemiskinan rata-rata
+    }
+    
+    # Jika model bundle punya info fitur, tambahkan default values untuk fitur lain
+    if RIDGE_MODEL_BUNDLE is not None and 'num_features' in RIDGE_MODEL_BUNDLE:
+        try:
+            num_features = RIDGE_MODEL_BUNDLE.get('num_features', [])
+            for feat in num_features:
+                if feat not in base_values:
+                    # Default values untuk fitur yang belum ter-handle
+                    defaults_map = {
+                        'Gini_Rasio': 0.35,
+                        'IPM': 72.0,
+                        'Garis_Kemiskinan': 500000.0,
+                        'Jumlah_Penduduk': 5000000.0,
+                        'Pct_Populasi': 2.5,  # % share of total population
+                        'Pct_Akses_Air_Bersih': 80.0,
+                        'Protein_gram_per_hari': 60.0,
+                        'Jumlah_Rumah_Tangga': 1500000.0,
+                    }
+                    base_values[feat] = defaults_map.get(feat, 0.0)
+        except Exception:
+            pass
+    
+    return pd.DataFrame([base_values])
 
 def daya_beli_page(request):
     load_models()
