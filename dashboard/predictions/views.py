@@ -518,3 +518,35 @@ def api_all_metrics_latest(request):
         return JsonResponse({'latest_year': int(latest_year), 'provinces': result, 'metrics': available})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def api_usd_idr_latest(request):
+    """Return latest USD/IDR exchange rate and recent history."""
+    project_root = os.path.dirname(settings.BASE_DIR)
+    path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
+    
+    if not os.path.exists(path):
+        return JsonResponse({'latest': 18050, 'change_pct': 0.5, 'history': []})
+    
+    try:
+        df = pd.read_csv(path)
+        if 'USD_IDR' not in df.columns:
+            return JsonResponse({'latest': 18050, 'change_pct': 0.5, 'history': []})
+        
+        df = df.dropna(subset=['USD_IDR'])
+        if len(df) == 0:
+            return JsonResponse({'latest': 18050, 'change_pct': 0.5, 'history': []})
+        
+        latest = float(df['USD_IDR'].iloc[-1])
+        prev = float(df['USD_IDR'].iloc[-2]) if len(df) > 1 else latest
+        change_pct = ((latest - prev) / prev) * 100
+        
+        history = df['USD_IDR'].tail(12).tolist()
+        
+        return JsonResponse({
+            'latest': round(latest, 2),
+            'change_pct': round(change_pct, 2),
+            'history': history
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

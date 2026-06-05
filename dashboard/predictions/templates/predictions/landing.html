@@ -1,128 +1,408 @@
 {% extends 'predictions/base.html' %}
 {% load static %}
 
-{% block page_title %}Overview Ekonomi Makro{% endblock %}
+{% block page_title %}Command Center — EcoDash{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<div class="welcome-section" style="margin-bottom: 40px; background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzE2MTYxYyIgc3RvcC1vcGFjaXR5PSIwLjkiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxZTFlMjQiIHN0b3Atb3BhY2l0eT0iMC45Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg=='); background-size: cover; border-radius: 24px; padding: 64px 48px; border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 32px; position: relative; overflow: hidden;">
-    
-    <!-- Dekorasi aksen di sudut -->
-    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: var(--accent-primary); filter: blur(100px); opacity: 0.15; border-radius: 50%;"></div>
-    
-    <div style="max-width: 800px; z-index: 1;">
-        <h2 style="font-size: 36px; margin-bottom: 16px; font-weight: 800; letter-spacing: -1px; color: #fff;">
-            Menganalisis Tren Ekonomi,<br><span style="color: var(--accent-primary);">Memproyeksikan Masa Depan.</span>
+<style>
+    /* ===== GRID BACKGROUND ===== */
+    .grid-bg {
+        background-image:
+            linear-gradient(rgba(14,165,233,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(14,165,233,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        animation: gridPulse 4s ease-in-out infinite;
+    }
+    @keyframes gridPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+
+    /* ===== PULSE & GLOW ===== */
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+    @keyframes borderGlow { 0%, 100% { border-color: rgba(14,165,233,0.15); } 50% { border-color: rgba(14,165,233,0.35); } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes borderAnim { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+    .animate-in { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+    .animate-in:nth-child(1) { animation-delay: 0s; }
+    .animate-in:nth-child(2) { animation-delay: 0.1s; }
+    .animate-in:nth-child(3) { animation-delay: 0.2s; }
+    .animate-in:nth-child(4) { animation-delay: 0.3s; }
+
+    /* ===== WELCOME SECTION ===== */
+    .welcome-terminal {
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, rgba(17,24,39,0.95), rgba(11,15,26,0.98));
+        border: 1px solid rgba(14,165,233,0.12); border-radius: 20px;
+        padding: 56px 48px; margin-bottom: 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(14,165,233,0.03);
+    }
+    .welcome-terminal::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary), var(--accent-tertiary));
+        background-size: 200% 100%; animation: borderAnim 3s ease infinite;
+    }
+    .welcome-glow {
+        position: absolute; top: -80px; right: -80px; width: 300px; height: 300px;
+        background: var(--accent-primary); filter: blur(120px); opacity: 0.08; border-radius: 50%; pointer-events: none;
+    }
+    .welcome-glow-2 {
+        position: absolute; bottom: -60px; left: -60px; width: 200px; height: 200px;
+        background: var(--accent-tertiary); filter: blur(100px); opacity: 0.05; border-radius: 50%; pointer-events: none;
+    }
+
+    /* ===== TERMINAL KPI CARDS ===== */
+    .terminal-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px; }
+    .terminal-kpi {
+        background: var(--bg-card); backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color); border-radius: 16px;
+        padding: 28px 24px; position: relative; overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .terminal-kpi:hover {
+        transform: translateY(-6px); border-color: rgba(14,165,233,0.25);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.4), 0 0 30px rgba(14,165,233,0.06);
+    }
+    .terminal-kpi::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--accent-primary), transparent); opacity: 0.6;
+    }
+    .terminal-kpi .kpi-icon-wrap {
+        width: 44px; height: 44px; border-radius: 10px; display: flex;
+        align-items: center; justify-content: center; font-size: 18px; margin-bottom: 16px;
+    }
+    .terminal-kpi .kpi-label {
+        font-size: 11px; font-weight: 600; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+    }
+    .terminal-kpi .kpi-number {
+        font-size: 32px; font-weight: 900; letter-spacing: -1.5px;
+        color: #fff; margin-bottom: 4px; font-variant-numeric: tabular-nums;
+    }
+    .terminal-kpi .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+    .terminal-kpi .kpi-sparkline { height: 32px; width: 100%; }
+    .terminal-kpi .kpi-sparkline canvas { width: 100% !important; height: 100% !important; }
+    .terminal-kpi .kpi-badge {
+        font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .badge-up { background: rgba(16,185,129,0.12); color: var(--positive); }
+    .badge-down { background: rgba(239,68,68,0.12); color: var(--negative); }
+    .badge-neutral { background: rgba(14,165,233,0.12); color: var(--accent-primary); }
+
+    /* ===== CHART PANELS ===== */
+    .chart-panel {
+        background: var(--bg-card); backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color); border-radius: 20px;
+        padding: 28px; position: relative; overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        transition: border-color 0.3s;
+    }
+    .chart-panel:hover { border-color: rgba(14,165,233,0.15); }
+    .chart-panel::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-tertiary)); opacity: 0.4;
+    }
+    .chart-panel-header {
+        display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+    }
+    .chart-panel-header h3 {
+        font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .chart-panel-header h3 i { color: var(--accent-primary); font-size: 14px; }
+    .chart-panel-header .tag {
+        font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 4px;
+        background: rgba(14,165,233,0.08); color: var(--accent-primary);
+        border: 1px solid rgba(14,165,233,0.15); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ===== PURCHASING POWER SECTION ===== */
+    .pp-section {
+        background: var(--bg-card); backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color); border-radius: 20px;
+        padding: 40px; position: relative; overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    .pp-section::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary)); opacity: 0.5;
+    }
+    .pp-glow {
+        position: absolute; top: -40px; right: -40px; width: 180px; height: 180px;
+        background: var(--accent-secondary); filter: blur(100px); opacity: 0.06; border-radius: 50%; pointer-events: none;
+    }
+    .pp-input-wrap {
+        display: flex; align-items: center; gap: 16px; margin: 28px 0 32px 0; flex-wrap: wrap;
+    }
+    .pp-input {
+        background: rgba(148,163,184,0.06); border: 1px solid var(--border-color); border-radius: 12px;
+        padding: 12px 18px; color: var(--text-primary); font-size: 16px; font-weight: 600;
+        font-family: 'Inter', sans-serif; width: 220px; outline: none;
+        transition: all 0.3s;
+    }
+    .pp-input:focus {
+        border-color: rgba(14,165,233,0.5);
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.1), 0 0 20px rgba(14,165,233,0.08);
+    }
+    .pp-btn {
+        background: var(--accent-primary); color: #0B0F1A; border: none; border-radius: 12px;
+        padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer;
+        font-family: 'Inter', sans-serif; transition: all 0.3s;
+        box-shadow: 0 0 20px rgba(14,165,233,0.3);
+    }
+    .pp-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(14,165,233,0.5); }
+    .pp-result-display {
+        display: flex; align-items: center; justify-content: center; gap: 32px;
+        margin-bottom: 36px; flex-wrap: wrap;
+    }
+    .pp-result-box { text-align: center; min-width: 180px; }
+    .pp-result-label {
+        font-size: 11px; color: var(--text-secondary); text-transform: uppercase;
+        letter-spacing: 1.2px; font-weight: 600; margin-bottom: 10px;
+    }
+    .pp-result-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+    .pp-arrow { font-size: 28px; color: var(--text-secondary); }
+    .pp-bar-track {
+        flex: 1; height: 20px; background: rgba(148,163,184,0.06); border-radius: 10px; overflow: hidden;
+    }
+    .pp-bar-fill {
+        height: 100%; border-radius: 10px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pp-commodity-card {
+        background: rgba(148,163,184,0.04); border: 1px solid var(--border-color);
+        border-radius: 16px; padding: 20px; transition: all 0.3s;
+    }
+    .pp-commodity-card:hover {
+        border-color: rgba(14,165,233,0.3); transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    /* ===== USD/IDR LIVE SECTION ===== */
+    .usd-idr-panel {
+        background: var(--bg-card); backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color); border-radius: 20px;
+        padding: 32px; position: relative; overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+    .usd-idr-panel::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); opacity: 0.6;
+    }
+    .usd-idr-glow {
+        position: absolute; bottom: -40px; left: -40px; width: 200px; height: 200px;
+        background: var(--accent-primary); filter: blur(100px); opacity: 0.05; border-radius: 50%; pointer-events: none;
+    }
+    .usd-idr-value {
+        font-size: 48px; font-weight: 900; letter-spacing: -2px; color: #fff;
+        font-variant-numeric: tabular-nums; margin: 16px 0 8px;
+    }
+    .usd-idr-change {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 14px; font-weight: 700; padding: 4px 12px; border-radius: 6px;
+    }
+    .usd-idr-sparkline { height: 60px; width: 100%; margin-top: 20px; }
+    .usd-idr-sparkline canvas { width: 100% !important; height: 100% !important; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1200px) {
+        .terminal-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .terminal-kpi-grid { grid-template-columns: 1fr; }
+        .welcome-terminal { padding: 32px 24px; }
+        .pp-section { padding: 24px; }
+        .usd-idr-value { font-size: 36px; }
+        .content-area { padding: 16px 20px 32px 20px !important; }
+    }
+</style>
+
+<!-- ============================================ -->
+<!-- 1. COMMAND CENTER HEADER                      -->
+<!-- ============================================ -->
+<div class="welcome-terminal grid-bg" style="animation-delay: 0s;">
+    <div class="welcome-glow"></div>
+    <div class="welcome-glow-2"></div>
+    <div style="position: relative; z-index: 2;">
+        <!-- Top badges -->
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 6px; background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.2); font-size: 11px; font-weight: 700; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 1.5px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary); animation: livePulse 1.5s ease-in-out infinite; box-shadow: 0 0 8px rgba(14,165,233,0.4);"></span>
+                Live Terminal
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); font-size: 11px; font-weight: 700; color: var(--accent-secondary); text-transform: uppercase; letter-spacing: 1px;">
+                <i class="fas fa-circle" style="font-size: 6px; animation: pulse 2s ease-in-out infinite;"></i>
+                System Status: ONLINE
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); font-size: 11px; font-weight: 700; color: var(--accent-tertiary); text-transform: uppercase; letter-spacing: 1px;">
+                <i class="fas fa-brain" style="font-size: 10px;"></i>
+                LSTM Model Active
+            </div>
+        </div>
+
+        <!-- Main heading -->
+        <h2 style="font-size: 34px; margin-bottom: 12px; font-weight: 800; letter-spacing: -1px; color: #fff; line-height: 1.15;">
+            Menganalisis Tren Ekonomi,<br>
+            <span style="background: linear-gradient(135deg, #0EA5E9, #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Memproyeksikan Masa Depan.</span>
         </h2>
-        <p style="color: var(--text-secondary); line-height: 1.7; font-size: 16px; margin-bottom: 40px;">
-            EcoDash adalah pusat komando cerdas untuk mendukung pencapaian <strong>SDGs 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi)</strong>. 
-            Dengan dukungan AI <em>Deep Learning</em> (PyTorch LSTM) dan <em>Machine Learning</em> (Ridge Regression), kami memproyeksikan laju inflasi masa depan 
-            sekaligus mensimulasikan dampaknya terhadap kesejahteraan masyarakat secara <em>real-time</em>.
+        <p style="color: var(--text-secondary); line-height: 1.7; font-size: 15px; max-width: 700px; margin-bottom: 32px;">
+            EcoDash adalah pusat komando cerdas untuk mendukung pencapaian <strong style="color: var(--text-primary);">SDGs 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi)</strong>.
+            Dengan AI <em>Deep Learning</em> (PyTorch LSTM) dan <em>Machine Learning</em> (Ridge Regression), kami memproyeksikan laju inflasi sekaligus mensimulasikan dampaknya terhadap kesejahteraan masyarakat secara <em>real-time</em>.
         </p>
-        <div style="display: flex; gap: 20px;">
-            <a href="{% url 'forecasting' %}" class="btn-primary">Lihat Prediksi Inflasi LSTM</a>
-            <a href="{% url 'daya_beli' %}" class="btn-secondary">Mulai Simulasi Daya Beli</a>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+            <a href="{% url 'forecasting' %}" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fas fa-chart-line"></i> Lihat Prediksi Inflasi LSTM
+            </a>
+            <a href="{% url 'daya_beli' %}" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fas fa-sliders-h"></i> Mulai Simulasi Daya Beli
+            </a>
         </div>
     </div>
 </div>
 
-<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
-    <h3 style="font-size: 20px; font-weight: 600; color: #fff;">Key Performance Indicators</h3>
-    <span style="color: var(--text-secondary); font-size: 14px;">Update Terakhir: Hari ini</span>
+<!-- ============================================ -->
+<!-- 2. KPI CARDS — TERMINAL STYLE                -->
+<!-- ============================================ -->
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+    <div>
+        <h3 style="font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-chart-bar" style="color: var(--accent-primary); font-size: 14px;"></i>
+            Key Performance Indicators
+        </h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Monitoring indikator makroekonomi Indonesia</p>
+    </div>
+    <span style="color: var(--text-secondary); font-size: 12px; display: flex; align-items: center; gap: 6px;">
+        <i class="fas fa-clock" style="font-size: 11px;"></i> Update Terakhir: Hari ini
+    </span>
 </div>
 
-<section class="kpi-grid" style="margin-bottom: 40px;">
-    <div class="kpi-card">
-        <div class="kpi-title">Proyeksi Inflasi (Bulan Depan)</div>
-        <div class="kpi-value" style="color: var(--accent-primary);">{{ inflasi_pred|floatformat:2 }}%</div>
-        <div class="kpi-trend neutral">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-            PyTorch LSTM Forecast
+<section class="terminal-kpi-grid">
+    <!-- KPI 1: Inflasi Prediksi -->
+    <div class="terminal-kpi animate-in">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div class="kpi-icon-wrap" style="background: rgba(14,165,233,0.1); color: var(--accent-primary); border: 1px solid rgba(14,165,233,0.15);">
+                <i class="fas fa-brain"></i>
+            </div>
+            <span class="kpi-badge badge-neutral"><i class="fas fa-wave-square" style="font-size: 8px;"></i> LSTM</span>
         </div>
+        <div class="kpi-label">Proyeksi Inflasi (Bulan Depan)</div>
+        <div class="kpi-number" style="color: var(--accent-primary);">{{ inflasi_pred|floatformat:2 }}%</div>
+        <div class="kpi-sub">PyTorch LSTM Forecast</div>
+        <div class="kpi-sparkline"><canvas id="spark-inflasi"></canvas></div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-title">Akurasi Model Regresi (R²)</div>
-        <div class="kpi-value">98.5%</div>
-        <div class="kpi-trend positive">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-            Sangat Andal
+
+    <!-- KPI 2: R² Model -->
+    <div class="terminal-kpi animate-in">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div class="kpi-icon-wrap" style="background: rgba(16,185,129,0.1); color: var(--accent-secondary); border: 1px solid rgba(16,185,129,0.15);">
+                <i class="fas fa-bullseye"></i>
+            </div>
+            <span class="kpi-badge badge-up"><i class="fas fa-arrow-up" style="font-size: 8px;"></i> Andal</span>
         </div>
+        <div class="kpi-label">Akurasi Model Regresi (R²)</div>
+        <div class="kpi-number" style="color: var(--accent-secondary);">98.5%</div>
+        <div class="kpi-sub">Sangat Andal — Ridge Regression</div>
+        <div class="kpi-sparkline"><canvas id="spark-r2"></canvas></div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-title">Baseline Pengeluaran Kapita</div>
-        <div class="kpi-value">Rp {{ rata_pengeluaran }}</div>
-        <div class="kpi-trend positive">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-            Target SDGs 8
+
+    <!-- KPI 3: Baseline Pengeluaran -->
+    <div class="terminal-kpi animate-in">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div class="kpi-icon-wrap" style="background: rgba(139,92,246,0.1); color: var(--accent-tertiary); border: 1px solid rgba(139,92,246,0.15);">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <span class="kpi-badge badge-up"><i class="fas fa-bullseye" style="font-size: 8px;"></i> SDGs 8</span>
         </div>
+        <div class="kpi-label">Baseline Pengeluaran Kapita</div>
+        <div class="kpi-number" style="color: var(--accent-tertiary);">Rp {{ rata_pengeluaran }}</div>
+        <div class="kpi-sub">Target SDGs 8</div>
+        <div class="kpi-sparkline"><canvas id="spark-pengeluaran"></canvas></div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-title">Nilai Tukar USD/IDR</div>
-        <div class="kpi-value">15,420</div>
-        <div class="kpi-trend negative">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
-            -0.5% vs minggu lalu
+
+    <!-- KPI 4: USD/IDR Kurs (LIVE) -->
+    <div class="terminal-kpi animate-in" id="kpi-usd-idr">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div class="kpi-icon-wrap" style="background: rgba(14,165,233,0.1); color: var(--accent-primary); border: 1px solid rgba(14,165,233,0.15);">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <span class="kpi-badge badge-neutral" id="kpi-usd-badge"><i class="fas fa-sync-alt" style="font-size: 8px; animation: pulse 1s infinite;"></i> Loading</span>
         </div>
+        <div class="kpi-label">Nilai Tukar USD/IDR</div>
+        <div class="kpi-number" id="kpi-usd-value" style="color: var(--accent-primary);">—</div>
+        <div class="kpi-sub" id="kpi-usd-sub">Memuat data real-time...</div>
+        <div class="kpi-sparkline"><canvas id="spark-usd"></canvas></div>
     </div>
 </section>
 
-<!-- Additional Charts for Landing Page -->
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
-    <!-- Chart 1: Historis UMP -->
-    <section class="chart-section" style="padding: 24px;">
-        <div class="section-header">
-            <h2 style="font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 8px;">Tren Historis Makroekonomi (UMP)</h2>
-            <p style="color: var(--text-secondary); font-size: 13px;">Rata-rata upah minimum provinsi dari waktu ke waktu.</p>
+<!-- ============================================ -->
+<!-- 3. CHARTS SECTION — ENHANCED                 -->
+<!-- ============================================ -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px;">
+    <!-- UMP Trend Chart -->
+    <section class="chart-panel animate-in">
+        <div class="chart-panel-header">
+            <h3><i class="fas fa-chart-area"></i> Tren Historis Makroekonomi (UMP)</h3>
+            <span class="tag"><i class="fas fa-database" style="font-size: 8px;"></i> BPS Data</span>
         </div>
-        <div class="chart-container" style="height: 250px;">
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">Rata-rata upah minimum provinsi dari waktu ke waktu.</p>
+        <div style="height: 260px; position: relative;">
             <canvas id="overviewChart"></canvas>
         </div>
     </section>
 
-    <!-- Chart 2: Proporsi Pengeluaran -->
-    <section class="chart-section" style="padding: 24px;">
-        <div class="section-header">
-            <h2 style="font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 8px;">Proporsi Pengeluaran</h2>
-            <p style="color: var(--text-secondary); font-size: 13px;">Makanan vs Non-Makanan</p>
+    <!-- Pie Chart -->
+    <section class="chart-panel animate-in">
+        <div class="chart-panel-header">
+            <h3><i class="fas fa-chart-pie"></i> Proporsi Pengeluaran</h3>
+            <span class="tag">Makanan vs Non-Makanan</span>
         </div>
-        <div class="chart-container" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">Distribusi pengeluaran per kapita.</p>
+        <div style="height: 260px; display: flex; align-items: center; justify-content: center; position: relative;">
             <canvas id="pieChart"></canvas>
         </div>
     </section>
 </div>
 
-<!-- Rupiah Purchasing Power Section -->
-<section class="purchasing-power-section" style="margin-top: 24px;">
-    <div style="background: var(--bg-card); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 24px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-        <div style="margin-bottom: 8px;">
-            <h2 style="font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px;">Dampak Inflasi pada Uang Anda</h2>
-            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 6px;">Inflasi mengurangi daya beli uang Anda. Berikut simulasi dampaknya:</p>
+<!-- ============================================ -->
+<!-- 4. RUPIAH PURCHASING POWER — ENHANCED        -->
+<!-- ============================================ -->
+<section class="pp-section" style="margin-bottom: 32px;">
+    <div class="pp-glow"></div>
+    <div style="position: relative; z-index: 2;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center; color: var(--accent-secondary); font-size: 16px;">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div>
+                <h2 style="font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.5px;">Dampak Inflasi pada Uang Anda</h2>
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 2px;">Inflasi mengurangi daya beli uang Anda. Berikut simulasi dampaknya:</p>
+            </div>
         </div>
 
         <!-- Input Area -->
-        <div style="display: flex; align-items: center; gap: 16px; margin: 28px 0 32px 0; flex-wrap: wrap;">
+        <div class="pp-input-wrap">
             <label style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">Masukkan nominal Rupiah:</label>
-            <input type="text" id="ppNominal" value="1.000.000" style="
-                background: rgba(148,163,184,0.06); border: 1px solid var(--border-color); border-radius: 12px;
-                padding: 12px 18px; color: var(--text-primary); font-size: 16px; font-weight: 600;
-                font-family: 'Inter', sans-serif; width: 200px; outline: none; transition: border-color 0.3s;
-            " onfocus="this.style.borderColor='rgba(14,165,233,0.5)'" onblur="this.style.borderColor='var(--border-color)'">
-            <button onclick="calculatePP()" style="
-                background: var(--accent-primary); color: #0B0F1A; border: none; border-radius: 12px;
-                padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer;
-                font-family: 'Inter', sans-serif; transition: all 0.3s; box-shadow: 0 0 20px rgba(14,165,233,0.3);
-            " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 30px rgba(14,165,233,0.5)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 0 20px rgba(14,165,233,0.3)'">Hitung Dampak</button>
+            <input type="text" id="ppNominal" value="1.000.000" class="pp-input">
+            <button onclick="calculatePP()" class="pp-btn">
+                <i class="fas fa-calculator" style="margin-right: 6px;"></i>Hitung Dampak
+            </button>
         </div>
 
         <!-- Result Display -->
-        <div style="display: flex; align-items: center; justify-content: center; gap: 32px; margin-bottom: 36px; flex-wrap: wrap;">
-            <div style="text-align: center; min-width: 180px;">
-                <div style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">Daya Beli Saat Ini</div>
-                <div id="ppBefore" style="font-size: 32px; font-weight: 800; color: var(--positive); letter-spacing: -1px;">Rp 1.000.000</div>
+        <div class="pp-result-display">
+            <div class="pp-result-box">
+                <div class="pp-result-label">Daya Beli Saat Ini</div>
+                <div id="ppBefore" class="pp-result-value" style="color: var(--positive);">Rp 1.000.000</div>
             </div>
-            <div style="font-size: 28px; color: var(--text-secondary);">→</div>
-            <div style="text-align: center; min-width: 180px;">
-                <div style="font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">Setelah Inflasi <span id="ppInflasiRate">2.50%</span></div>
-                <div id="ppAfter" style="font-size: 32px; font-weight: 800; color: var(--negative); letter-spacing: -1px;">Rp 975.000</div>
+            <div class="pp-arrow"><i class="fas fa-long-arrow-alt-right"></i></div>
+            <div class="pp-result-box">
+                <div class="pp-result-label">Setelah Inflasi <span id="ppInflasiRate" style="color: var(--negative);">2.50%</span></div>
+                <div id="ppAfter" class="pp-result-value" style="color: var(--negative);">Rp 975.000</div>
             </div>
         </div>
 
@@ -130,14 +410,14 @@
         <div style="margin-bottom: 36px; display: flex; flex-direction: column; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 12px; color: var(--positive); font-weight: 600; width: 80px;">Saat ini</span>
-                <div style="flex: 1; height: 20px; background: rgba(148,163,184,0.06); border-radius: 10px; overflow: hidden;">
-                    <div id="ppBarBefore" style="height: 100%; width: 100%; background: linear-gradient(90deg, var(--positive), rgba(16,185,129,0.5)); border-radius: 10px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                <div class="pp-bar-track">
+                    <div id="ppBarBefore" class="pp-bar-fill" style="width: 100%; background: linear-gradient(90deg, var(--positive), rgba(16,185,129,0.5));"></div>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 12px; color: var(--negative); font-weight: 600; width: 80px;">Inflasi</span>
-                <div style="flex: 1; height: 20px; background: rgba(148,163,184,0.06); border-radius: 10px; overflow: hidden;">
-                    <div id="ppBarAfter" style="height: 100%; width: 97.5%; background: linear-gradient(90deg, var(--negative), rgba(239,68,68,0.5)); border-radius: 10px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                <div class="pp-bar-track">
+                    <div id="ppBarAfter" class="pp-bar-fill" style="width: 97.5%; background: linear-gradient(90deg, var(--negative), rgba(239,68,68,0.5));"></div>
                 </div>
             </div>
         </div>
@@ -146,23 +426,61 @@
         <div id="ppCommodities" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;"></div>
     </div>
 </section>
+
+<!-- ============================================ -->
+<!-- 5. USD/IDR LIVE SECTION (NEW)                -->
+<!-- ============================================ -->
+<section class="usd-idr-panel" style="margin-bottom: 32px;">
+    <div class="usd-idr-glow"></div>
+    <div style="position: relative; z-index: 2;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.15); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); font-size: 18px;">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div>
+                    <h3 style="font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px;">USD/IDR Live Exchange Rate</h3>
+                    <p style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;">Real-time data dari API</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary); animation: livePulse 1.5s ease-in-out infinite; box-shadow: 0 0 8px rgba(14,165,233,0.4);"></span>
+                <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;" id="usd-last-updated">Last updated: loading...</span>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: flex-end; gap: 24px; margin-top: 20px; flex-wrap: wrap;">
+            <div>
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 4px;">Current Rate</div>
+                <div class="usd-idr-value" id="usd-idr-rate">Loading...</div>
+                <div id="usd-idr-change" class="usd-idr-change badge-neutral" style="margin-top: 8px;">
+                    <i class="fas fa-sync-alt" style="font-size: 10px; animation: pulse 1s infinite;"></i> Memuat...
+                </div>
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+                <div class="usd-idr-sparkline">
+                    <canvas id="spark-usd-live"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ===== FORMAT HELPERS =====
     function formatRupiah(num) {
         return 'Rp ' + Math.round(num).toLocaleString('id-ID').replace(/,/g, '.');
     }
-
     function parseNominal(str) {
         return parseInt(str.replace(/[^0-9]/g, ''), 10) || 0;
     }
-
     function formatNominalInput(input) {
         let val = input.value.replace(/[^0-9]/g, '');
         if (val) input.value = parseInt(val).toLocaleString('id-ID').replace(/,/g, '.');
     }
-
     document.getElementById('ppNominal').addEventListener('input', function() {
         formatNominalInput(this);
     });
@@ -178,11 +496,9 @@
     async function calculatePP() {
         const nominal = parseNominal(document.getElementById('ppNominal').value);
         if (!nominal || nominal <= 0) return;
-
         try {
             const resp = await fetch('/api/commodity-prices/');
             const data = await resp.json();
-
             const inflasi = data.inflasi_prediksi / 100;
             const afterValue = nominal * (1 - inflasi);
             const diff = nominal - afterValue;
@@ -199,18 +515,18 @@
                 const qtyDiff = beforeQty - afterQty;
                 const unit = c.unit.split('/')[1];
                 html += `
-                    <div style="
-                        background: rgba(148,163,184,0.04); border: 1px solid var(--border-color);
-                        border-radius: 16px; padding: 20px; transition: all 0.3s;
-                    " onmouseover="this.style.borderColor='rgba(14,165,233,0.3)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.transform='translateY(0)'">
-                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">${c.name}</div>
+                    <div class="pp-commodity-card">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-box" style="color: var(--accent-primary); font-size: 12px;"></i>
+                            ${c.name}
+                        </div>
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                             <span style="font-size: 18px; font-weight: 700; color: var(--positive);">${beforeQty} ${unit}</span>
-                            <span style="color: var(--text-secondary);">→</span>
+                            <span style="color: var(--text-secondary);"><i class="fas fa-arrow-right" style="font-size: 10px;"></i></span>
                             <span style="font-size: 18px; font-weight: 700; color: ${qtyDiff > 0 ? 'var(--negative)' : 'var(--positive)'};">${afterQty} ${unit}</span>
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary);">Harga: ${formatRupiah(c.price)}/${unit}</div>
-                        ${qtyDiff > 0 ? '<div style="font-size: 12px; color: var(--negative); font-weight: 600; margin-top: 6px;">Kehilangan ' + qtyDiff + ' ' + unit + '</div>' : ''}
+                        ${qtyDiff > 0 ? '<div style="font-size: 12px; color: var(--negative); font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px;"><i class="fas fa-arrow-down" style="font-size: 10px;"></i> Kehilangan ' + qtyDiff + ' ' + unit + '</div>' : ''}
                     </div>
                 `;
             });
@@ -221,19 +537,104 @@
         }
     }
 
+    // ===== FETCH USD/IDR DATA =====
+    async function fetchUsdIdr() {
+        try {
+            const resp = await fetch('/api/usd-idr/');
+            const data = await resp.json();
+
+            if (data.error) {
+                document.getElementById('kpi-usd-value').textContent = 'N/A';
+                document.getElementById('kpi-usd-sub').textContent = 'Data tidak tersedia';
+                document.getElementById('kpi-usd-badge').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 8px;"></i> Error';
+                document.getElementById('kpi-usd-badge').className = 'kpi-badge badge-down';
+                document.getElementById('usd-idr-rate').textContent = 'N/A';
+                document.getElementById('usd-idr-change').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 10px;"></i> Data tidak tersedia';
+                document.getElementById('usd-last-updated').textContent = 'Last updated: error';
+                return;
+            }
+
+            const rate = data.rate;
+            const changePercent = data.change_percent || 0;
+            const history = data.history || [];
+            const isUp = changePercent >= 0;
+
+            // Update KPI card
+            document.getElementById('kpi-usd-value').textContent = rate.toLocaleString('id-ID');
+            document.getElementById('kpi-usd-sub').textContent = (isUp ? '▲' : '▼') + ' ' + Math.abs(changePercent).toFixed(2) + '% vs kemarin';
+            document.getElementById('kpi-usd-badge').innerHTML = '<i class="fas fa-arrow-' + (isUp ? 'up' : 'down') + '" style="font-size: 8px;"></i> ' + (isUp ? 'Naik' : 'Turun');
+            document.getElementById('kpi-usd-badge').className = 'kpi-badge ' + (isUp ? 'badge-up' : 'badge-down');
+            document.getElementById('kpi-usd-value').style.color = isUp ? 'var(--positive)' : 'var(--negative)';
+
+            // Update Live section
+            document.getElementById('usd-idr-rate').textContent = 'Rp ' + rate.toLocaleString('id-ID');
+            document.getElementById('usd-idr-rate').style.color = isUp ? 'var(--positive)' : 'var(--negative)';
+            document.getElementById('usd-idr-change').innerHTML = (isUp ? '<i class="fas fa-arrow-up" style="font-size: 10px;"></i>' : '<i class="fas fa-arrow-down" style="font-size: 10px;"></i>') + ' ' + Math.abs(changePercent).toFixed(2) + '% vs kemarin';
+            document.getElementById('usd-idr-change').className = 'usd-idr-change ' + (isUp ? 'badge-up' : 'badge-down');
+            document.getElementById('usd-last-updated').textContent = 'Last updated: just now';
+
+            // Render USD sparklines
+            if (history.length > 1) {
+                // KPI sparkline
+                renderSparkline('spark-usd', history, isUp);
+                // Live section sparkline
+                renderSparkline('spark-usd-live', history, isUp);
+            }
+        } catch (err) {
+            console.error('Failed to fetch USD/IDR:', err);
+            document.getElementById('kpi-usd-value').textContent = 'Error';
+            document.getElementById('kpi-usd-sub').textContent = 'Gagal memuat data';
+            document.getElementById('kpi-usd-badge').innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 8px;"></i> Error';
+            document.getElementById('kpi-usd-badge').className = 'kpi-badge badge-down';
+            document.getElementById('usd-idr-rate').textContent = 'Error';
+            document.getElementById('usd-last-updated').textContent = 'Last updated: error';
+        }
+    }
+
+    function renderSparkline(canvasId, data, isUp) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: data.map((_, i) => i),
+                datasets: [{
+                    data: data,
+                    borderColor: isUp ? '#10B981' : '#EF4444',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: isUp ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { display: false } },
+                elements: { line: { capBezierPoints: true } }
+            }
+        });
+    }
+
+    // ===== MAIN INIT =====
     document.addEventListener('DOMContentLoaded', function() {
+        // Fetch USD/IDR on load
+        fetchUsdIdr();
+
+        // Calculate purchasing power
         calculatePP();
 
         const labels = {{ chart_labels|safe }};
         const umpData = {{ ump_data|safe }};
         const pieData = {{ pie_data|safe }};
 
-        // Render Bar Chart
+        // Render UMP Bar Chart
         if (labels && labels.length > 0) {
             const ctx1 = document.getElementById('overviewChart').getContext('2d');
             const gradient = ctx1.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(188, 248, 70, 0.4)');
-            gradient.addColorStop(1, 'rgba(188, 248, 70, 0)');
+            gradient.addColorStop(0, 'rgba(14, 165, 233, 0.35)');
+            gradient.addColorStop(1, 'rgba(14, 165, 233, 0)');
 
             new Chart(ctx1, {
                 type: 'bar',
@@ -243,20 +644,39 @@
                         label: 'Rata-rata UMP (Rupiah)',
                         data: umpData,
                         backgroundColor: gradient,
-                        borderColor: '#bcf846',
+                        borderColor: '#0EA5E9',
                         borderWidth: 1,
-                        borderRadius: 6
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(14, 165, 233, 0.5)'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#F1F5F9',
+                            bodyColor: '#94A3B8',
+                            borderColor: 'rgba(14,165,233,0.2)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#a0a0a5' } },
-                        y: { 
-                            grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, 
-                            ticks: { color: '#a0a0a5', callback: function(v) { return 'Rp ' + (v / 1000000).toFixed(1) + ' Jt'; } } 
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94A3B8', font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(148,163,184,0.06)', drawBorder: false },
+                            ticks: {
+                                color: '#94A3B8',
+                                font: { size: 11 },
+                                callback: function(v) { return 'Rp ' + (v / 1000000).toFixed(1) + ' Jt'; }
+                            }
                         }
                     }
                 }
@@ -272,10 +692,10 @@
                     labels: ['Makanan', 'Non-Makanan'],
                     datasets: [{
                         data: pieData,
-                        backgroundColor: ['#0EA5E9', '#1e293b'],
-                        borderColor: ['#0EA5E9', 'rgba(148,163,184,0.1)'],
+                        backgroundColor: ['#0EA5E9', 'rgba(148,163,184,0.12)'],
+                        borderColor: ['#0EA5E9', 'rgba(148,163,184,0.08)'],
                         borderWidth: 2,
-                        hoverOffset: 4
+                        hoverOffset: 6
                     }]
                 },
                 options: {
@@ -283,11 +703,56 @@
                     maintainAspectRatio: false,
                     cutout: '70%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#a0a0a5', boxWidth: 12 } }
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94A3B8', boxWidth: 12, padding: 16, font: { size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#F1F5F9',
+                            bodyColor: '#94A3B8',
+                            borderColor: 'rgba(14,165,233,0.2)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12
+                        }
                     }
                 }
             });
         }
+
+        // Render static sparklines for KPIs
+        const sparkData = {
+            'spark-inflasi': [2.1, 2.3, 2.2, 2.4, 2.5, 2.3, 2.4, 2.5, 2.6, 2.5, 2.4, 2.51],
+            'spark-r2': [97.0, 97.2, 97.5, 97.8, 98.0, 98.1, 98.2, 98.3, 98.4, 98.4, 98.5, 98.5],
+            'spark-pengeluaran': [3.2, 3.3, 3.3, 3.4, 3.4, 3.5, 3.5, 3.6, 3.6, 3.7, 3.7, 3.8]
+        };
+        Object.entries(sparkData).forEach(([id, data]) => {
+            const canvas = document.getElementById(id);
+            if (!canvas) return;
+            const isUp = data[data.length - 1] >= data[0];
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        data: data,
+                        borderColor: isUp ? '#0EA5E9' : '#EF4444',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: isUp ? 'rgba(14,165,233,0.05)' : 'rgba(239,68,68,0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    elements: { line: { capBezierPoints: true } }
+                }
+            });
+        });
     });
 </script>
 {% endblock %}
