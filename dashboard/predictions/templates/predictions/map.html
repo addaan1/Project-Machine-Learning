@@ -87,7 +87,6 @@
         <option value="IPM">Indeks Pembangunan Manusia</option>
         <option value="Gini_Rasio">Gini Ratio</option>
         <option value="Pct_Penduduk_Miskin">% Penduduk Miskin</option>
-        <option value="Inflasi_Rata_Tahunan">Inflasi Rata-rata</option>
     </select>
     <div id="mapLegend" class="map-legend">
         <div class="legend-title">Loading...</div>
@@ -144,27 +143,27 @@ const PROVINCE_COORDS = {
 };
 
 const METRIC_INFO = {
-    'Total_Pengeluaran': { label: 'Daya Beli', unit: 'Rp', format: 'currency' },
-    'UMP': { label: 'UMP', unit: 'Rp', format: 'currency' },
-    'PDRB_HargaKonstan': { label: 'PDRB/Kapita', unit: 'Rp', format: 'currency' },
-    'TPT': { label: 'TPT', unit: '%', format: 'percent' },
-    'IPM': { label: 'IPM', unit: '', format: 'number' },
-    'Gini_Rasio': { label: 'Gini', unit: '', format: 'number' },
-    'Pct_Penduduk_Miskin': { label: '% Miskin', unit: '%', format: 'percent' },
-    'Inflasi_Rata_Tahunan': { label: 'Inflasi', unit: '%', format: 'percent' }
+    'Total_Pengeluaran': { label: 'Daya Beli', unit: 'Rp', format: 'currency', useLog: true },
+    'UMP': { label: 'UMP', unit: 'Rp', format: 'currency', useLog: true },
+    'PDRB_HargaKonstan': { label: 'PDRB/Kapita', unit: 'Rp', format: 'currency', useLog: true },
+    'TPT': { label: 'TPT', unit: '%', format: 'percent', useLog: false },
+    'IPM': { label: 'IPM', unit: '', format: 'number', useLog: false },
+    'Gini_Rasio': { label: 'Gini', unit: '', format: 'number', useLog: false },
+    'Pct_Penduduk_Miskin': { label: '% Miskin', unit: '%', format: 'percent', useLog: false }
 };
 
 const HEAT_GRADIENT = {
-    0.0: '#1E3A8A',
-    0.2: '#3B82F6',
-    0.4: '#06B6D4',
-    0.6: '#10B981',
-    0.7: '#F59E0B',
-    0.8: '#F97316',
-    1.0: '#EF4444'
+    0.0: '#1E40AF',
+    0.15: '#3B82F6',
+    0.3: '#06B6D4',
+    0.45: '#10B981',
+    0.6: '#84CC16',
+    0.75: '#F59E0B',
+    0.9: '#F97316',
+    1.0: '#DC2626'
 };
 
-const LEGEND_STOPS = [0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 1.0];
+const LEGEND_STOPS = [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0];
 
 let map, heatLayer, markers = {}, provinceData = {};
 
@@ -194,8 +193,15 @@ function formatVal(val, metric) {
     return val.toFixed(2);
 }
 
-function normalize(val, min, max) {
+function normalize(val, min, max, useLog) {
     if (max === min) return 0.5;
+    if (useLog) {
+        // Log-scale normalization untuk data dengan range lebar (Rp 14rb - 211rb)
+        const lv = Math.log(Math.max(val, 1));
+        const lmin = Math.log(Math.max(min, 1));
+        const lmax = Math.log(Math.max(max, 1));
+        return (lv - lmin) / (lmax - lmin);
+    }
     return (val - min) / (max - min);
 }
 
@@ -244,19 +250,20 @@ function updateMap() {
     const rankMap = {};
     sortedDesc.forEach((v, idx) => { rankMap[v.prov] = idx + 1; });
     
+    const useLog = METRIC_INFO[metric] && METRIC_INFO[metric].useLog;
     const heatPoints = values.map(v => {
         const coords = PROVINCE_COORDS[v.prov];
         if (!coords) return null;
-        const intensity = normalize(v.val, minVal, maxVal);
+        const intensity = normalize(v.val, minVal, maxVal, useLog);
         return [coords[0], coords[1], intensity];
     }).filter(p => p !== null);
     
     heatLayer = L.heatLayer(heatPoints, {
-        radius: 35,
-        blur: 50,
+        radius: 55,
+        blur: 45,
         maxZoom: 10,
         max: 1.0,
-        minOpacity: 0.35,
+        minOpacity: 0.45,
         gradient: HEAT_GRADIENT
     }).addTo(map);
     
