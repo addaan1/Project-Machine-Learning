@@ -585,25 +585,90 @@ def scenarios_page(request):
 # API ENDPOINTS FOR REAL DATA
 # ============================================================
 
+def _is_number(s):
+    """Check if string looks like a number (int or float)."""
+    try:
+        float(str(s).replace(',', '').replace(' ', ''))
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def api_dataset_sample(request):
-    """Return sample rows and column info from processed CSV files."""
-    dataset = request.GET.get('dataset', 'daya_beli')
+    """Return sample rows and column info from a dataset file.
+
+    Supports two modes:
+    - ?file=<relative path under datasets/> → read that specific CSV
+    - ?dataset=<name> → legacy alias for processed datasets (daya_beli / inflasi)
+    """
     n_rows = int(request.GET.get('n', 8))
     project_root = os.path.dirname(settings.BASE_DIR)
-    
-    if dataset == 'daya_beli':
-        path = os.path.join(project_root, 'datasets', 'processed', 'clean_daya_beli.csv')
+    datasets_root = os.path.join(project_root, 'datasets')
+
+    file_param = request.GET.get('file', '').strip()
+    dataset = request.GET.get('dataset', '').strip()
+
+    if file_param:
+        # Whitelist: only allow CSV files under datasets/ (no path traversal)
+        rel = file_param.replace('\\', '/').lstrip('/')
+        if '..' in rel.split('/'):
+            return JsonResponse({'error': 'Invalid path'}, status=400)
+        if not rel.lower().endswith('.csv'):
+            return JsonResponse({'error': 'Only CSV files are previewable'}, status=400)
+        path = os.path.join(datasets_root, rel)
+        if not os.path.isfile(path):
+            return JsonResponse({
+                'error': 'File not found. Dataset ini mungkin berformat XLSX/XLS atau terdiri dari banyak file (satu CSV per tahun).',
+                'file_format': 'XLSX' if 'XLSX' in rel.upper() or 'XLS' in rel.upper() else 'multi-file'
+            }, status=404)
+    elif dataset == 'daya_beli':
+        path = os.path.join(datasets_root, 'processed', 'clean_daya_beli.csv')
     elif dataset == 'inflasi':
-        path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
+        path = os.path.join(datasets_root, 'processed', 'clean_inflasi_ts.csv')
     else:
-        return JsonResponse({'error': 'Unknown dataset'}, status=400)
-    
+        return JsonResponse({'error': 'Unknown dataset. Provide ?file= or ?dataset='}, status=400)
+
     if not os.path.exists(path):
         return JsonResponse({'error': 'File not found'}, status=404)
-    
+
     try:
-        df = pd.read_csv(path)
-        # Get column names and types
+        # Try to detect multi-row headers (BPS files often have 1-3 metadata rows)
+        # Strategy: read first few lines, pick the first row with most non-empty cells
+        # that is "header-like" (mostly text, no numeric values).
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            sample_lines = [f.readline() for _ in range(8)]
+
+        best_row = 0
+        best_score = -1
+        for i, line in enumerate(sample_lines):
+            cells = [c.strip() for c in line.rstrip('\n').split(',') if c.strip()]
+            if not cells:
+                continue
+            # Count cells that are clearly text (not parseable as float)
+            text_cells = sum(1 for c in cells if not _is_number(c))
+            # Heuristic score: prefer rows where many cells are text and row width is high
+            score = text_cells * 10 + len(cells)
+            # Penalize early empty rows
+            if i < 2 and text_cells <= 1:
+                score = -1
+            if score > best_score:
+                best_score = score
+                best_row = i
+
+        # If best score is too low, just use row 0
+        if best_score < 0:
+            best_row = 0
+
+        df = pd.read_csv(path, header=best_row)
+
+        # Rename first column if it's "Unnamed: 0" (typical for BPS wide-format files)
+        if len(df.columns) > 0 and 'Unnamed' in str(df.columns[0]):
+            df = df.rename(columns={df.columns[0]: 'Wilayah'})
+
+        # Drop remaining fully-empty columns (Unnamed: X) and fully-empty rows
+        df = df.loc[:, ~df.columns.str.contains(r'^Unnamed', na=False)]
+        df = df.dropna(how='all').reset_index(drop=True)
+
         col_names = []
         col_types = []
         for col in df.columns:
@@ -614,16 +679,16 @@ def api_dataset_sample(request):
                 col_types.append('date')
             else:
                 col_types.append('text')
-        
-        # Sample rows (first n_rows)
+
+        # Sample first n_rows, fill NaN
         rows = df.head(n_rows).fillna('').astype(str).to_dict('records')
-        
+
         return JsonResponse({
             'columns': col_names,
             'types': col_types,
             'rows': rows,
             'total_rows': len(df),
-            'dataset': dataset
+            'source_file': os.path.relpath(path, project_root).replace('\\', '/')
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
