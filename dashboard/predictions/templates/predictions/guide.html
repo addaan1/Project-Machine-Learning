@@ -183,6 +183,31 @@
         </div>
 
         <div class="guide-card">
+            <h3>1B. Model apa yang dipakai (state-of-the-art)</h3>
+            <p><strong>Untuk Prediksi Inflasi:</strong></p>
+            <ul>
+                <li><strong>SARIMAX (Seasonal ARIMA + Exogenous)</strong> - juara dengan Test MAE 0.265%, RMSE 0.393%. Tangkap pola musiman (Ramadan, Lebaran, Natal) + efek BI Rate, minyak, Brent.</li>
+                <li><strong>LSTM Ensemble + Bidirectional LSTM</strong> - 3 seed ensemble + BiLSTM. Test MAE 0.299%. Tangkap pola sequential dua arah.</li>
+                <li><strong>ARIMA (p,d,q)</strong> - Test MAE 0.338%. Baseline time series klasik.</li>
+                <li><strong>Gradient Boosting & Random Forest</strong> - Non-linear ML, MAE 0.42-0.45%.</li>
+            </ul>
+            <p><strong>Untuk Prediksi Daya Beli (panel 2017-2025, 34 provinsi × 9 tahun = 306 obs):</strong></p>
+            <ul>
+                <li><strong>Lasso (L1 regularization)</strong> - Test R² = 0.997, MAE = Rp 9,977. Model terbaik dengan feature selection otomatis.</li>
+                <li><strong>Ridge Regression dengan Pipeline</strong> - Test R² = 0.994, MAE = Rp 19,080. <strong>Model yang dipakai di website</strong> karena stabilitas dan interpretability.</li>
+                <li><strong>XGBoost</strong> - Test R² = 0.971, MAE = Rp 35,875. Non-linear interactions.</li>
+                <li><strong>Random Forest</strong> - Test R² = 0.896.</li>
+                <li><strong>Panel FE (Fixed Effects)</strong> - untuk interpretasi ekonomi (TPT, PDRB, UMP coefficient).</li>
+            </ul>
+            <p><strong>Validasi yang dipakai:</strong></p>
+            <ul>
+                <li><strong>Walk-Forward Cross-Validation (TimeSeriesSplit)</strong> - 5 fold expanding window, lebih robust dari single train-test split. Estimasi mean ± std MAE per fold.</li>
+                <li><strong>Out-of-sample test</strong> - semua model dievaluasi di test set yang tidak dilihat saat training.</li>
+                <li><strong>NO data leakage</strong> - ARIMA fit pada train only, baru forecast test (fix dari versi sebelumnya yang fit di full data).</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
             <h3>2. Istilah penting yang sering bikin bingung</h3>
             <div class="term-list">
                 <div class="term-item">
