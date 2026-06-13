@@ -63,3 +63,17 @@ class DayaBeliSimulationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertGreater(response.context["base_value"], 800000)
+
+
+class EconomicMapPageTests(TestCase):
+    def test_map_uses_province_polygons_and_insight_panel(self):
+        response = self.client.get(reverse("map"))
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("indonesia_provinces.geojson", html)
+        self.assertIn("L.geoJSON", html)
+        self.assertIn('id="mapSummary"', html)
+        self.assertIn('id="provinceRanking"', html)
+        self.assertIn('id="resetMapView"', html)
+        self.assertNotIn("PROVINCE_COORDS", html)
