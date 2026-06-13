@@ -853,55 +853,11 @@ def api_usd_idr_latest(request):
 # ARIMA MODEL
 # ============================================================
 
-ARIMA_MODEL = None
-ARIMA_FORECAST = None
-
-def load_arima():
-    """Load ARIMA model and forecast data."""
-    global ARIMA_MODEL, ARIMA_FORECAST
-    
-    project_root = os.path.dirname(settings.BASE_DIR)
-    models_dir = os.path.join(project_root, 'models')
-    
-    arima_path = os.path.join(models_dir, 'arima_inflasi.pkl')
-    forecast_path = os.path.join(models_dir, 'arima_forecast.pkl')
-    
-    if os.path.exists(arima_path) and ARIMA_MODEL is None:
-        try:
-            with open(arima_path, 'rb') as f:
-                ARIMA_MODEL = pickle.load(f)
-        except Exception:
-            ARIMA_MODEL = None
-    
-    if os.path.exists(forecast_path) and ARIMA_FORECAST is None:
-        try:
-            with open(forecast_path, 'rb') as f:
-                ARIMA_FORECAST = pickle.load(f)
-        except Exception:
-            ARIMA_FORECAST = None
-
-
-def api_arima_forecast(request):
-    """Return ARIMA forecast data."""
-    load_arima()
-    
-    if ARIMA_FORECAST is None:
-        return JsonResponse({
-            'available': False,
-            'message': 'ARIMA model belum di-train. Jalankan save_arima_model.py terlebih dahulu.'
-        })
-    
-    return JsonResponse({
-        'available': True,
-        'forecast': ARIMA_FORECAST.get('forecast', {}),
-        'order': str(ARIMA_FORECAST.get('order', 'N/A')),
-        'last_date': ARIMA_FORECAST.get('last_date', 'N/A'),
-        'last_value': ARIMA_FORECAST.get('last_value', 0)
-    })
-
-
 # ============================================================
-# ENSEMBLE FORECAST API (LSTM + ARIMA + Prophet)
+# ENSEMBLE FORECAST API (SARIMAX + LSTM Ensemble + Gradient Boosting)
+# ============================================================
+# Note: ARIMA removed (replaced by SARIMAX which is strictly better with seasonal + exogenous)
+# Note: LSTM replaced by 3-seed Ensemble + Bidirectional LSTM
 # ============================================================
 ENSEMBLE_FORECAST = None
 ENSEMBLE_METRICS = None
