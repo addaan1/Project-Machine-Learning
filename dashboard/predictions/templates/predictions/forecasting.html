@@ -57,28 +57,10 @@
         <h2>Perbandingan Akurasi Model (Walk-Forward Backtest)</h2>
         <p>4 model dibandingkan pada data historis — lower MAE/sMAPE = lebih akurat</p>
     </div>
-    <div id="modelComparisonCards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-        <div class="model-card" data-model="arima">
-            <div class="model-name">ARIMA(0,0,1)</div>
-            <div class="model-icon" style="background: rgba(255, 179, 0, 0.1); color: var(--warning);">📊</div>
-            <div class="model-metrics">
-                <div class="model-metric"><span>MAE</span><strong>—</strong></div>
-                <div class="model-metric"><span>RMSE</span><strong>—</strong></div>
-                <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
-            </div>
-        </div>
-        <div class="model-card" data-model="prophet">
-            <div class="model-name">Prophet</div>
-            <div class="model-icon" style="background: rgba(0, 188, 212, 0.1); color: var(--accent-info);">📈</div>
-            <div class="model-metrics">
-                <div class="model-metric"><span>MAE</span><strong>—</strong></div>
-                <div class="model-metric"><span>RMSE</span><strong>—</strong></div>
-                <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
-            </div>
-        </div>
-        <div class="model-card best" data-model="ensemble">
+    <div id="modelComparisonCards" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div class="model-card best" data-model="sarimax">
             <div class="model-badge">★ BEST</div>
-            <div class="model-name">Ensemble</div>
+            <div class="model-name">SARIMAX</div>
             <div class="model-icon" style="background: rgba(38, 166, 154, 0.1); color: var(--positive);">🎯</div>
             <div class="model-metrics">
                 <div class="model-metric"><span>MAE</span><strong>—</strong></div>
@@ -86,9 +68,36 @@
                 <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
             </div>
         </div>
+        <div class="model-card" data-model="lstm_ensemble">
+            <div class="model-name">LSTM Ensemble+BiLSTM</div>
+            <div class="model-icon" style="background: rgba(41, 98, 255, 0.1); color: var(--accent-primary);">🧠</div>
+            <div class="model-metrics">
+                <div class="model-metric"><span>MAE</span><strong>—</strong></div>
+                <div class="model-metric"><span>RMSE</span><strong>—</strong></div>
+                <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
+            </div>
+        </div>
+        <div class="model-card" data-model="gradient_boosting">
+            <div class="model-name">Gradient Boosting</div>
+            <div class="model-icon" style="background: rgba(0, 188, 212, 0.1); color: var(--accent-info);">📈</div>
+            <div class="model-metrics">
+                <div class="model-metric"><span>MAE</span><strong>—</strong></div>
+                <div class="model-metric"><span>RMSE</span><strong>—</strong></div>
+                <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
+            </div>
+        </div>
+        <div class="model-card" data-model="random_forest">
+            <div class="model-name">Random Forest</div>
+            <div class="model-icon" style="background: rgba(255, 179, 0, 0.1); color: var(--warning);">🌲</div>
+            <div class="model-metrics">
+                <div class="model-metric"><span>MAE</span><strong>—</strong></div>
+                <div class="model-metric"><span>RMSE</span><strong>—</strong></div>
+                <div class="model-metric"><span>sMAPE</span><strong>—</strong></div>
+            </div>
+        </div>
     </div>
-    <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; padding: 12px 16px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--accent-primary);">
-        <strong>💡 Catatan Backtest:</strong> Walk-forward backtest menguji setiap model pada data historis (prediksi bulan demi bulan, training di-update setiap step). Ensemble = weighted average: <strong>Prophet 0.50 + ARIMA 0.30 + LSTM 0.20</strong>. Model LSTM tetap digunakan dalam ensemble karena memberikan kontribusi stabil dari 44 fitur multivariate.
+    <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.6; padding: 12px 16px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--positive);">
+        <strong>💡 State-of-the-art Backtest:</strong> Walk-forward CV menguji setiap model pada data historis (prediksi bulan demi bulan, training di-update setiap step). <strong>SARIMAX</strong> juara dengan seasonal order (12) + exogenous (BI_Rate, Brent, Inflasi_Inti). <strong>ARIMA plain dihapus</strong> karena SARIMAX lebih akurat. <strong>LSTM Ensemble</strong> (3 seeds) + <strong>Bidirectional LSTM</strong> untuk menangkap pola sequential dua arah. Ensemble = weighted: <strong>SARIMAX 0.50 + LSTM Ens 0.30 + GB 0.20</strong>.
     </p>
 </section>
 
@@ -99,20 +108,20 @@
         Prediksi 1 Bulan ke Depan: <span id="ensemble-next" style="color: var(--text-primary); font-size: 18px; margin-left: 6px;">—</span>
     </h3>
     <p style="color: var(--text-secondary); line-height: 1.6; font-size: 14px; margin-bottom: 8px;">
-        Berdasarkan <strong>ensemble weighted average</strong> ARIMA + Prophet, proyeksi inflasi M-to-M untuk <strong id="next-month-label">—</strong> adalah <strong id="ensemble-next-desc">—</strong>. Angka M-to-M yang kecil (0.x%) ini adalah perubahan dari bulan lalu; untuk konteks inflasi tahunan (Y-o-Y), lihat card di atas.
+        Berdasarkan <strong>SARIMAX (Seasonal ARIMA + Exogenous)</strong> - model terbaik, proyeksi inflasi M-to-M untuk <strong id="next-month-label">—</strong> adalah <strong id="ensemble-next-desc">—</strong>. SARIMAX menangkap pola musiman (Ramadan, Lebaran, Natal) + efek BI Rate, harga minyak, dan Brent. Angka M-to-M yang kecil (0.x%) ini adalah perubahan dari bulan lalu; untuk konteks inflasi tahunan (Y-o-Y), lihat card di atas.
     </p>
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px;">
-        <div style="padding: 12px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--warning);">
-            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">ARIMA</div>
-            <div style="font-size: 16px; font-weight: 700; color: var(--warning);" id="arima-next">—</div>
+        <div style="padding: 12px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--positive);">
+            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">★ SARIMAX (Best)</div>
+            <div style="font-size: 16px; font-weight: 700; color: var(--positive);" id="sarimax-next">—</div>
+        </div>
+        <div style="padding: 12px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--accent-primary);">
+            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">LSTM Ensemble</div>
+            <div style="font-size: 16px; font-weight: 700; color: var(--accent-primary);" id="lstm-ens-next">—</div>
         </div>
         <div style="padding: 12px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--accent-info);">
-            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Prophet</div>
-            <div style="font-size: 16px; font-weight: 700; color: var(--accent-info);" id="prophet-next">—</div>
-        </div>
-        <div style="padding: 12px; background: var(--bg-panel); border-radius: 6px; border-left: 3px solid var(--positive);">
-            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">★ Ensemble</div>
-            <div style="font-size: 16px; font-weight: 700; color: var(--positive);" id="ensemble-next-card">—</div>
+            <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;">Ensemble</div>
+            <div style="font-size: 16px; font-weight: 700; color: var(--accent-info);" id="ensemble-next-card">—</div>
         </div>
     </div>
     <p id="forecast-status" style="color: var(--text-secondary); line-height: 1.6; font-size: 14px; margin-top: 16px;">
@@ -271,8 +280,8 @@
         }
 
         const predLstmData = buildPredData(modelPreds.lstm);
-        const predArimaData = buildPredData(modelPreds.arima || null);
-        const predProphetData = buildPredData(modelPreds.prophet || null);
+        const predSarimaxData = buildPredData(modelPreds.sarimax || null);
+        const predLstmEnsData = buildPredData(modelPreds.lstm_ensemble || null);
         const predEnsembleData = buildPredData(modelPreds.ensemble);
         
         const ctx = document.getElementById('forecastChart').getContext('2d');
@@ -296,8 +305,21 @@
                         spanGaps: false
                     },
                     {
-                        label: `LSTM (${modelPreds.lstm !== undefined ? modelPreds.lstm.toFixed(2) : '—'}%)`,
-                        data: predLstmData,
+                        label: `★ SARIMAX (${modelPreds.sarimax !== undefined ? modelPreds.sarimax.toFixed(2) : '—'}%)`,
+                        data: predSarimaxData,
+                        borderColor: '#26A69A',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        tension: 0.1,
+                        pointRadius: 7,
+                        pointBackgroundColor: '#FFFFFF',
+                        pointBorderColor: '#26A69A',
+                        pointBorderWidth: 2.5,
+                        spanGaps: false
+                    },
+                    {
+                        label: `LSTM Ensemble+BiLSTM (${modelPreds.lstm_ensemble !== undefined && modelPreds.lstm_ensemble !== 0 ? modelPreds.lstm_ensemble.toFixed(2) : (modelPreds.lstm !== undefined ? modelPreds.lstm.toFixed(2) : '—')}%)`,
+                        data: predLstmEnsData[0] ? predLstmEnsData : predLstmData,
                         borderColor: '#2962FF',
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -310,22 +332,8 @@
                         spanGaps: false
                     },
                     {
-                        label: `ARIMA (${modelPreds.arima !== undefined ? modelPreds.arima.toFixed(2) : '—'}%)`,
-                        data: predArimaData,
-                        borderColor: '#FFB300',
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        borderDash: [2, 4],
-                        tension: 0.1,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#FFB300',
-                        pointBorderWidth: 2,
-                        spanGaps: false
-                    },
-                    {
-                        label: `Prophet (${modelPreds.prophet !== undefined ? modelPreds.prophet.toFixed(2) : '—'}%)`,
-                        data: predProphetData,
+                        label: `Ensemble (${modelPreds.ensemble !== undefined ? modelPreds.ensemble.toFixed(2) : '—'}%)`,
+                        data: predEnsembleData,
                         borderColor: '#00BCD4',
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -335,19 +343,6 @@
                         pointBackgroundColor: '#FFFFFF',
                         pointBorderColor: '#00BCD4',
                         pointBorderWidth: 2,
-                        spanGaps: false
-                    },
-                    {
-                        label: `★ Ensemble (${modelPreds.ensemble !== undefined ? modelPreds.ensemble.toFixed(2) : '—'}%)`,
-                        data: predEnsembleData,
-                        borderColor: '#26A69A',
-                        backgroundColor: 'transparent',
-                        borderWidth: 3,
-                        tension: 0.1,
-                        pointRadius: 7,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#26A69A',
-                        pointBorderWidth: 2.5,
                         spanGaps: false
                     }
                 ]
@@ -414,11 +409,11 @@
     });
     
     // Populate side cards
-    document.getElementById('arima-next').textContent = (modelPreds.arima !== undefined ? modelPreds.arima.toFixed(2) : '—') + '%';
-    document.getElementById('prophet-next').textContent = (modelPreds.prophet !== undefined ? modelPreds.prophet.toFixed(2) : '—') + '%';
+    document.getElementById('sarimax-next').textContent = (modelPreds.sarimax !== undefined ? modelPreds.sarimax.toFixed(2) : '—') + '%';
+    document.getElementById('lstm-ens-next').textContent = (modelPreds.lstm_ensemble !== undefined && modelPreds.lstm_ensemble !== 0 ? modelPreds.lstm_ensemble.toFixed(2) : (modelPreds.lstm !== undefined ? modelPreds.lstm.toFixed(2) : '—')) + '%';
     document.getElementById('ensemble-next-card').textContent = (modelPreds.ensemble !== undefined ? modelPreds.ensemble.toFixed(2) : '—') + '%';
-    document.getElementById('ensemble-next').textContent = (modelPreds.ensemble !== undefined ? modelPreds.ensemble.toFixed(2) : '—') + '%';
-    document.getElementById('ensemble-next-desc').textContent = (modelPreds.ensemble !== undefined ? modelPreds.ensemble.toFixed(2) + '%' : '—');
+    document.getElementById('ensemble-next').textContent = (modelPreds.sarimax !== undefined ? modelPreds.sarimax.toFixed(2) : '—') + '%';
+    document.getElementById('ensemble-next-desc').textContent = (modelPreds.sarimax !== undefined ? modelPreds.sarimax.toFixed(2) + '%' : '—');
     
     // Format next month label
     const nd = new Date(nextDate + '-01');
