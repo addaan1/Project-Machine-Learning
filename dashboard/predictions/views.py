@@ -484,14 +484,12 @@ def daya_beli_page(request):
             'tpt': round(_safe_float(fields.get('TPT')), 3),
             'pdrb_hargakonstan': round(_safe_float(fields.get('PDRB_HargaKonstan')), 2),
         }
-
     context = {
         'provinces': province_names,
         'default_province': default_province,
         'province_defaults_json': json.dumps(province_defaults),
     }
     return render(request, 'predictions/daya_beli.html', context)
-
 def simulate_daya_beli(request):
     provinsi = request.GET.get('provinsi', '').strip()
     if not provinsi:
