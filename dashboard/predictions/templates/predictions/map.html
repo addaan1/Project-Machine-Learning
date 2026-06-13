@@ -621,15 +621,55 @@ function calculateStats(values) {
         min: ascending[0],
         max: ascending[ascending.length - 1],
         average: total / ascending.length,
-        thresholds: [0.16, 0.33, 0.5, 0.67, 0.84].map((percentile) => quantile(ascending, percentile)),
-        highGlowThreshold: quantile(ascending, 0.76)
+        median: quantile(ascending, 0.5)
     };
 }
 
+function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const bigint = parseInt(clean, 16);
+    return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255
+    };
+}
+
+function rgbToHex({ r, g, b }) {
+    const toHex = (component) => component.toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function interpolateColor(startHex, endHex, amount) {
+    const start = hexToRgb(startHex);
+    const end = hexToRgb(endHex);
+    return rgbToHex({
+        r: Math.round(start.r + (end.r - start.r) * amount),
+        g: Math.round(start.g + (end.g - start.g) * amount),
+        b: Math.round(start.b + (end.b - start.b) * amount)
+    });
+}
+
+function normalizedValue(value) {
+    if (!activeStats || !Number.isFinite(value)) return null;
+    const range = activeStats.max - activeStats.min;
+    if (range <= 0) return 0.5;
+    return Math.min(1, Math.max(0, (value - activeStats.min) / range));
+}
+
 function colorForValue(value) {
-    if (!activeStats || !Number.isFinite(value)) return '#dfe5ec';
-    const index = activeStats.thresholds.findIndex((threshold) => value <= threshold);
-    return COLOR_SCALE[index === -1 ? COLOR_SCALE.length - 1 : index];
+    const normalized = normalizedValue(value);
+    if (normalized === null) return '#dfe5ec';
+
+    if (normalized >= 1) {
+        return COLOR_SCALE[COLOR_SCALE.length - 1];
+    }
+
+    const scaled = normalized * (COLOR_SCALE.length - 1);
+    const lowerIndex = Math.floor(scaled);
+    const upperIndex = Math.min(COLOR_SCALE.length - 1, lowerIndex + 1);
+    const localAmount = scaled - lowerIndex;
+    return interpolateColor(COLOR_SCALE[lowerIndex], COLOR_SCALE[upperIndex], localAmount);
 }
 
 function polygonStyle(feature) {
@@ -709,7 +749,7 @@ function updateLegend() {
         <div class="legend-gradient"></div>
         <div class="legend-labels">
             <span>${formatValue(activeStats.min)}</span>
-            <span>${formatValue(activeStats.average)}</span>
+            <span>${formatValue(activeStats.median)}</span>
             <span>${formatValue(activeStats.max)}</span>
         </div>
     `;
@@ -769,28 +809,34 @@ function updateHeatGlow(values) {
     if (heatLayer) map.removeLayer(heatLayer);
 
     const heatPoints = values
-        .filter((item) => item.value >= activeStats.highGlowThreshold)
         .map((item) => {
             const layer = provinceLayers[item.province];
             if (!layer) return null;
             const center = layer.getBounds().getCenter();
-            const intensity = (item.value - activeStats.highGlowThreshold) /
-                Math.max(activeStats.max - activeStats.highGlowThreshold, 1);
-            return [center.lat, center.lng, Math.max(0.35, intensity)];
+            const intensity = normalizedValue(item.value);
+            if (intensity === null || intensity < 0.08) return null;
+            return [center.lat, center.lng, Math.max(0.12, intensity * 0.85)];
         })
         .filter(Boolean);
 
+    if (!heatPoints.length) {
+        heatLayer = null;
+        return;
+    }
+
     heatLayer = L.heatLayer(heatPoints, {
         pane: 'heatGlowPane',
-        radius: 32,
-        blur: 28,
-        minOpacity: 0.08,
+        radius: 24,
+        blur: 20,
+        minOpacity: 0.05,
         maxZoom: 7,
         gradient: {
-            0.2: '#65b9ff',
-            0.55: '#1fb7a6',
-            0.8: '#f0b44d',
-            1: '#ee755d'
+            0.0: '#e6efff',
+            0.24: '#a9caff',
+            0.48: '#5c9df5',
+            0.72: '#1f74d1',
+            0.88: '#0b9c98',
+            1.0: '#f0b44d'
         }
     }).addTo(map);
 }
