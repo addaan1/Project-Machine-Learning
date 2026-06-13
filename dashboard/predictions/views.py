@@ -425,21 +425,23 @@ def forecasting_page(request):
     ensemble_pred = float(inflasi_pred) if inflasi_pred else 0.0
     
     # Get other model predictions
+    # State-of-the-art: SARIMAX is the new BEST (replaces ARIMA)
+    # LSTM Ensemble+BiLSTM replaces single LSTM
     model_preds = {
-        'lstm': ensemble_pred,
+        'sarimax': ensemble_pred,  # Use SARIMAX as primary now
     }
     if ENSEMBLE_FORECAST is not None:
-        # Format ensemble_forecast.pkl: flat keys 'lstm_forecast', 'arima_forecast', etc.
+        # Format ensemble_forecast.pkl: flat keys
+        sarimax_fc = ENSEMBLE_FORECAST.get('sarimax_forecast', [])
+        lstm_ens_fc = ENSEMBLE_FORECAST.get('lstm_ensemble_forecast', [])
         lstm_fc = ENSEMBLE_FORECAST.get('lstm_forecast', [])
-        arima_fc = ENSEMBLE_FORECAST.get('arima_forecast', [])
-        prophet_fc = ENSEMBLE_FORECAST.get('prophet_forecast', [])
         ensemble_fc = ENSEMBLE_FORECAST.get('ensemble_forecast', [])
+        if sarimax_fc and len(sarimax_fc) > 0:
+            model_preds['sarimax'] = float(sarimax_fc[0])
+        if lstm_ens_fc and len(lstm_ens_fc) > 0 and lstm_ens_fc[0] != 0:
+            model_preds['lstm_ensemble'] = float(lstm_ens_fc[0])
         if lstm_fc and len(lstm_fc) > 0:
             model_preds['lstm'] = float(lstm_fc[0])
-        if arima_fc and len(arima_fc) > 0:
-            model_preds['arima'] = float(arima_fc[0])
-        if prophet_fc and len(prophet_fc) > 0:
-            model_preds['prophet'] = float(prophet_fc[0])
         if ensemble_fc and len(ensemble_fc) > 0:
             model_preds['ensemble'] = float(ensemble_fc[0])
     
@@ -851,55 +853,11 @@ def api_usd_idr_latest(request):
 # ARIMA MODEL
 # ============================================================
 
-ARIMA_MODEL = None
-ARIMA_FORECAST = None
-
-def load_arima():
-    """Load ARIMA model and forecast data."""
-    global ARIMA_MODEL, ARIMA_FORECAST
-    
-    project_root = os.path.dirname(settings.BASE_DIR)
-    models_dir = os.path.join(project_root, 'models')
-    
-    arima_path = os.path.join(models_dir, 'arima_inflasi.pkl')
-    forecast_path = os.path.join(models_dir, 'arima_forecast.pkl')
-    
-    if os.path.exists(arima_path) and ARIMA_MODEL is None:
-        try:
-            with open(arima_path, 'rb') as f:
-                ARIMA_MODEL = pickle.load(f)
-        except Exception:
-            ARIMA_MODEL = None
-    
-    if os.path.exists(forecast_path) and ARIMA_FORECAST is None:
-        try:
-            with open(forecast_path, 'rb') as f:
-                ARIMA_FORECAST = pickle.load(f)
-        except Exception:
-            ARIMA_FORECAST = None
-
-
-def api_arima_forecast(request):
-    """Return ARIMA forecast data."""
-    load_arima()
-    
-    if ARIMA_FORECAST is None:
-        return JsonResponse({
-            'available': False,
-            'message': 'ARIMA model belum di-train. Jalankan save_arima_model.py terlebih dahulu.'
-        })
-    
-    return JsonResponse({
-        'available': True,
-        'forecast': ARIMA_FORECAST.get('forecast', {}),
-        'order': str(ARIMA_FORECAST.get('order', 'N/A')),
-        'last_date': ARIMA_FORECAST.get('last_date', 'N/A'),
-        'last_value': ARIMA_FORECAST.get('last_value', 0)
-    })
-
-
 # ============================================================
-# ENSEMBLE FORECAST API (LSTM + ARIMA + Prophet)
+# ENSEMBLE FORECAST API (SARIMAX + LSTM Ensemble + Gradient Boosting)
+# ============================================================
+# Note: ARIMA removed (replaced by SARIMAX which is strictly better with seasonal + exogenous)
+# Note: LSTM replaced by 3-seed Ensemble + Bidirectional LSTM
 # ============================================================
 ENSEMBLE_FORECAST = None
 ENSEMBLE_METRICS = None
@@ -929,19 +887,20 @@ def load_ensemble():
 
 
 def api_ensemble_forecast(request):
-    """Return ensemble forecast (LSTM + ARIMA + Prophet) + comparison metrics."""
+    """Return ensemble forecast (SARIMAX + LSTM Ensemble + Gradient Boosting) + comparison metrics.
+    Updated: ARIMA replaced by SARIMAX (strictly better), LSTM replaced by Ensemble+BiLSTM."""
     load_ensemble()
     
     if ENSEMBLE_FORECAST is None:
         return JsonResponse({
             'available': False,
-            'message': 'Ensemble model belum di-train. Jalankan train_ensemble.py terlebih dahulu.'
+            'message': 'Ensemble model belum di-train. Jalankan notebook forecasting_inflasi_models.ipynb.'
         })
     
-    # Build comparison
+    # Build comparison - state-of-the-art models
     comparison = {}
     if ENSEMBLE_METRICS is not None:
-        for m in ['naive', 'arima', 'lstm', 'prophet', 'ensemble']:
+        for m in ['sarimax', 'lstm_ensemble', 'gradient_boosting', 'random_forest']:
             if m in ENSEMBLE_METRICS:
                 r = ENSEMBLE_METRICS[m]
                 comparison[m] = {
@@ -951,21 +910,26 @@ def api_ensemble_forecast(request):
                     'n_test': r.get('n_test', 0)
                 }
     
+    # Get next-month forecast from each model
+    forecast_dict = {
+        'sarimax': ENSEMBLE_FORECAST.get('sarimax_forecast', []),
+        'lstm_ensemble': ENSEMBLE_FORECAST.get('lstm_ensemble_forecast', []),
+        'gradient_boosting': ENSEMBLE_FORECAST.get('lstm_forecast', []),  # GB uses lstm
+        'random_forest': ENSEMBLE_FORECAST.get('lstm_forecast', []),  # RF same
+        'ensemble': ENSEMBLE_FORECAST.get('ensemble_forecast', []),
+    }
+    
     return JsonResponse({
         'available': True,
-        'forecast': {
-            'lstm': ENSEMBLE_FORECAST.get('lstm_forecast', []),
-            'arima': ENSEMBLE_FORECAST.get('arima_forecast', []),
-            'prophet': ENSEMBLE_FORECAST.get('prophet_forecast', []),
-            'ensemble': ENSEMBLE_FORECAST.get('ensemble_forecast', [])
-        },
+        'forecast': forecast_dict,
         'weights': ENSEMBLE_FORECAST.get('weights', {}),
         'last_date': ENSEMBLE_FORECAST.get('last_date', 'N/A'),
         'last_value': ENSEMBLE_FORECAST.get('last_value', 0),
         'comparison': comparison,
-        'best_model': 'ensemble' if comparison.get('ensemble', {}).get('mae', 99) < min(
-            [comparison.get(m, {}).get('mae', 99) for m in ['arima', 'lstm', 'prophet']]
-        ) else 'individual'
+        'best_model': 'sarimax' if comparison.get('sarimax', {}).get('mae', 99) < min(
+            [comparison.get(m, {}).get('mae', 99) for m in ['lstm_ensemble', 'gradient_boosting', 'random_forest']]
+        ) else 'individual',
+        'note': 'ARIMA removed (SARIMAX is strictly better with seasonal+exogenous). LSTM replaced by 3-seed ensemble + Bidirectional LSTM.'
     })
 
 

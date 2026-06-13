@@ -183,6 +183,25 @@
         </div>
 
         <div class="guide-card">
+            <h3>1B. Model apa yang ditampilkan di website</h3>
+            <p>Website menampilkan <strong>4 model</strong> per halaman dengan hasil evaluasi pada data historis. Model dengan akurasi terbaik ditandai <strong>★ BEST</strong>.</p>
+            <p><strong>Halaman Prediksi Inflasi (4 model):</strong></p>
+            <ul>
+                <li><strong>★ SARIMAX</strong> - juara dengan Test MAE 0.265%, RMSE 0.393%. Seasonal (12) + exogenous (BI Rate, minyak, Brent, inflasi inti).</li>
+                <li><strong>LSTM Ensemble + BiLSTM</strong> - Test MAE 0.299%. Multi-seed averaging + Bidirectional LSTM.</li>
+                <li><strong>Gradient Boosting</strong> - Test MAE 0.437%. Non-linear ensemble method.</li>
+                <li><strong>Random Forest</strong> - Test MAE 0.458%. Bagging ensemble.</li>
+            </ul>
+            <p><strong>Halaman Simulasi Daya Beli (1 model):</strong></p>
+            <ul>
+                <li><strong>★ Ridge Regression</strong> - Test R² = 0.994. Pipeline (StandardScaler + OneHotEncoder + Ridge). Dipakai karena stabil & bisa simulasi skenario (naik/turun UMP, inflasi, dll).</li>
+            </ul>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 12px;">
+                <strong>Cara baca:</strong> semakin kecil MAE/RMSE, semakin akurat. Validasi pakai walk-forward cross-validation (time series) — lebih robust dari single train-test split.
+            </p>
+        </div>
+
+        <div class="guide-card">
             <h3>2. Istilah penting yang sering bikin bingung</h3>
             <div class="term-list">
                 <div class="term-item">
