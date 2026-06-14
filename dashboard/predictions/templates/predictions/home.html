@@ -889,7 +889,10 @@
             });
         }
 
-        fetch('/api/usd-idr/')
+        fetch('/api/usd-idr/', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        })
             .then((response) => {
                 if (!response.ok) throw new Error('Gagal memuat kurs');
                 return response.json();

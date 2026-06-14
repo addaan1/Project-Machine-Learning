@@ -35,6 +35,7 @@ class UsdIdrApiTests(TestCase):
         self.assertEqual(data["change_pct"], 0.36)
         self.assertEqual(data["history"], [17950, 17910, 17974])
         self.assertEqual(data["data_type"], "daily")
+        self.assertIn("no-store", api_response["Cache-Control"])
 
 
 class HomePageUsdIdrTests(TestCase):
@@ -47,7 +48,8 @@ class HomePageUsdIdrTests(TestCase):
         self.assertContains(response, 'id="home-usd-value"')
         self.assertContains(response, 'id="home-usd-change"')
         self.assertContains(response, 'id="home-usd-date"')
-        self.assertIn("fetch('/api/usd-idr/')", html)
+        self.assertIn("fetch('/api/usd-idr/', {", html)
+        self.assertIn("cache: 'no-store'", html)
         self.assertContains(response, "Buka Panduan")
 
 
@@ -117,6 +119,12 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "Perbandingan dengan bulan yang sama tahun lalu")
         self.assertContains(response, "Akumulasi sejak Januari")
         self.assertIn(reverse("guide"), html)
+
+    def test_inflation_summary_api_uses_no_store_headers(self):
+        response = self.client.get(reverse("api_inflasi_summary"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
 
 
 class EconomicMapPageTests(TestCase):

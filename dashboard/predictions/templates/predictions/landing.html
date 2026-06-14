@@ -605,7 +605,10 @@
     }
 
     async function hydrateInflationSummary() {
-        const response = await fetch('/api/inflasi-summary/');
+        const response = await fetch('/api/inflasi-summary/', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.error || 'Gagal memuat ringkasan inflasi');
@@ -623,7 +626,10 @@
     }
 
     async function hydrateUsdPanel() {
-        const response = await fetch('/api/usd-idr/');
+        const response = await fetch('/api/usd-idr/', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.error || 'Gagal memuat kurs USD/IDR');

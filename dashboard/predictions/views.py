@@ -46,6 +46,14 @@ def _safe_float(value, fallback=0.0):
         return float(fallback)
 
 
+def _json_no_store(payload, status=200):
+    response = JsonResponse(payload, status=status)
+    response["Cache-Control"] = "no-store, no-cache, max-age=0, must-revalidate"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
 def _pct_change(current, previous, fallback=0.0):
     current_val = _safe_float(current, fallback)
     previous_val = _safe_float(previous, 0.0)
@@ -820,7 +828,7 @@ def api_usd_idr_latest(request):
     """Return the latest USD/IDR rate and its previous daily observation."""
     import urllib.request
     import json as json_lib
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta
     
     project_root = os.path.dirname(settings.BASE_DIR)
     path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
@@ -831,6 +839,7 @@ def api_usd_idr_latest(request):
     previous_rate = None
     previous_date = None
     daily_history = []
+    source_label = None
     try:
         end_date = date.today()
         start_date = end_date - timedelta(days=14)
@@ -854,11 +863,28 @@ def api_usd_idr_latest(request):
                 daily_date, daily_rate = observations[-1]
                 daily_rate = round(float(daily_rate), 2)
                 daily_history = [round(float(rate), 2) for _, rate in observations[-10:]]
+                source_label = 'Frankfurter (central bank reference rates)'
             if len(observations) >= 2:
                 previous_date, previous_rate = observations[-2]
                 previous_rate = round(float(previous_rate), 2)
     except Exception:
         pass
+
+    if daily_rate is None:
+        try:
+            latest_url = "https://open.er-api.com/v6/latest/USD"
+            req = urllib.request.Request(latest_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json_lib.loads(resp.read().decode())
+                idr_rate = (data.get('rates') or {}).get('IDR')
+                if idr_rate is not None:
+                    daily_rate = round(float(idr_rate), 2)
+                    source_label = 'open.er-api.com (latest daily reference)'
+                    updated_unix = data.get('time_last_update_unix')
+                    if updated_unix:
+                        daily_date = datetime.utcfromtimestamp(int(updated_unix)).date().isoformat()
+        except Exception:
+            pass
     
     # 2. Load monthly data from processed CSV
     monthly_rate = None
@@ -888,7 +914,7 @@ def api_usd_idr_latest(request):
 
     history = daily_history if daily_history else monthly_history
     
-    return JsonResponse({
+    return _json_no_store({
         'latest': latest,
         'daily_rate': daily_rate,
         'daily_date': daily_date,
@@ -898,8 +924,9 @@ def api_usd_idr_latest(request):
         'monthly_date': monthly_date,
         'change_pct': round(change_pct, 2),
         'history': history,
-        'source': 'Frankfurter (central bank reference rates)' if daily_rate else 'BPS (monthly avg)',
-        'data_type': 'daily' if daily_rate else 'monthly_avg'
+        'source': source_label if daily_rate else 'BPS (monthly avg)',
+        'data_type': 'daily' if daily_rate else 'monthly_avg',
+        'generated_at': datetime.utcnow().isoformat() + 'Z',
     })
 
 
@@ -1029,20 +1056,13 @@ def api_ensemble_forecast(request):
 # INFLASI SUMMARY API (M-to-M, Y-o-Y, Y-to-D)
 # ============================================================
 
-INFLASI_SUMMARY_CACHE = None
-
 def api_inflasi_summary(request):
     """Return ringkasan inflasi: M-to-M, Y-o-Y, Y-to-D, dan histori 24 bulan."""
-    global INFLASI_SUMMARY_CACHE
-    
-    if INFLASI_SUMMARY_CACHE is not None:
-        return JsonResponse(INFLASI_SUMMARY_CACHE)
-    
     project_root = os.path.dirname(settings.BASE_DIR)
     data_path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
     
     if not os.path.exists(data_path):
-        return JsonResponse({'error': 'Data file not found'}, status=404)
+        return _json_no_store({'error': 'Data file not found'}, status=404)
     
     try:
         df = pd.read_csv(data_path, parse_dates=['Tanggal'])
@@ -1105,7 +1125,7 @@ def api_inflasi_summary(request):
             status = 'Tidak tersedia'
             status_color = 'neutral'
         
-        INFLASI_SUMMARY_CACHE = {
+        payload = {
             'as_of': last_date,
             'mom': {
                 'value': round(float(latest['Inflasi_MoM']), 2),
@@ -1128,10 +1148,10 @@ def api_inflasi_summary(request):
             'history': history
         }
         
-        return JsonResponse(INFLASI_SUMMARY_CACHE)
+        return _json_no_store(payload)
     
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return _json_no_store({'error': str(e)}, status=500)
 
 
 # ============================================================

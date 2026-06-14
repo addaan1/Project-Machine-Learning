@@ -4,6 +4,11 @@ matplotlib
 seaborn
 openpyxl
 scikit-learn
+joblib
+statsmodels
+prophet
+xgboost
+linearmodels
 torch
 django
 yfinance
