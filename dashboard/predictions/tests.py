@@ -43,6 +43,7 @@ class HomePageUsdIdrTests(TestCase):
         html = response.content.decode()
 
         self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.context["ridge_test_r2"], 0)
         self.assertContains(response, 'id="home-usd-value"')
         self.assertContains(response, 'id="home-usd-change"')
         self.assertContains(response, 'id="home-usd-date"')

@@ -8,6 +8,7 @@ import torch.nn as nn
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
+from predictions.daya_beli_model import prepare_daya_beli_dataframe
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
@@ -59,18 +60,9 @@ def _build_ridge_simulation_defaults(project_root):
     if not os.path.exists(path):
         return None
 
-    df = pd.read_csv(path).sort_values(['Provinsi', 'Tahun']).copy()
+    df = prepare_daya_beli_dataframe(pd.read_csv(path))
     if df.empty:
         return None
-
-    df['Real_UMP'] = df['UMP'] / (1 + (df['Inflasi_Rata_Tahunan'] / 100.0))
-    df['Real_UMP_Growth'] = df.groupby('Provinsi')['Real_UMP'].pct_change() * 100.0
-    df['PDRB_HargaKonstan_Growth'] = df.groupby('Provinsi')['PDRB_HargaKonstan'].pct_change() * 100.0
-    df['TPT_Growth'] = df.groupby('Provinsi')['TPT'].pct_change() * 100.0
-    df['UMP_x_PDRB'] = df['Real_UMP'] * df['PDRB_HargaKonstan']
-    df['Inflasi_x_TPT'] = df['Inflasi_Rata_Tahunan'] * df['TPT']
-    df['Log_PDRB'] = np.log1p(df['PDRB_HargaKonstan'])
-    df['Log_UMP'] = np.log1p(df['Real_UMP'])
 
     latest_year = df['Tahun'].max()
     latest = df[df['Tahun'] == latest_year]
@@ -94,15 +86,9 @@ def _build_province_simulation_baselines(project_root):
     if not os.path.exists(path):
         return {}
 
-    df = pd.read_csv(path).sort_values(['Provinsi', 'Tahun']).copy()
+    df = prepare_daya_beli_dataframe(pd.read_csv(path))
     if df.empty:
         return {}
-
-    df['Prev_UMP'] = df.groupby('Provinsi')['UMP'].shift(1)
-    df['Prev_Inflasi'] = df.groupby('Provinsi')['Inflasi_Rata_Tahunan'].shift(1)
-    df['Prev_Real_UMP'] = df['Prev_UMP'] / (1 + (df['Prev_Inflasi'] / 100.0))
-    df['Prev_PDRB_HargaKonstan'] = df.groupby('Provinsi')['PDRB_HargaKonstan'].shift(1)
-    df['Prev_TPT'] = df.groupby('Provinsi')['TPT'].shift(1)
 
     latest_rows = df.groupby('Provinsi').tail(1).copy()
     baselines = {}
@@ -203,7 +189,7 @@ def load_models():
             RIDGE_MODEL_BUNDLE = raw
         else:
             RIDGE_MODEL = raw
-            RIDGE_MODEL_BUNDLE = None
+            RIDGE_MODEL_BUNDLE = {'legacy_artifact': True}
 
     if RIDGE_SIMULATION_DEFAULTS is None:
         RIDGE_SIMULATION_DEFAULTS = _build_ridge_simulation_defaults(project_root)
@@ -516,6 +502,11 @@ def simulate_daya_beli(request):
     load_models()
     if RIDGE_MODEL is None:
         return JsonResponse({'error': 'Model belum siap'}, status=500)
+    if (RIDGE_MODEL_BUNDLE or {}).get('legacy_artifact'):
+        return JsonResponse(
+            {'error': 'Artifact model daya beli lama tidak kompatibel dengan inference per provinsi terbaru.'},
+            status=500,
+        )
 
     try:
         dummy_input, baseline = _build_simulation_input(provinsi, overrides)
