@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
 from predictions.daya_beli_model import prepare_daya_beli_dataframe
+from predictions.inflation_forecast import load_saved_forecast_payload
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
@@ -35,6 +36,7 @@ LSTM_FEATURES = None
 RATA_PENGELUARAN = 1450000
 RIDGE_SIMULATION_DEFAULTS = None
 PROVINCE_SIMULATION_BASELINES = None
+INFLATION_FORECAST_PAYLOAD = None
 
 
 def _safe_float(value, fallback=0.0):
@@ -44,6 +46,14 @@ def _safe_float(value, fallback=0.0):
         return float(value)
     except (TypeError, ValueError):
         return float(fallback)
+
+
+def _json_no_store(payload, status=200):
+    response = JsonResponse(payload, status=status)
+    response["Cache-Control"] = "no-store, no-cache, max-age=0, must-revalidate"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
 
 
 def _pct_change(current, previous, fallback=0.0):
@@ -114,7 +124,7 @@ def _get_province_simulation_baselines():
 
 
 def _build_simulation_input(province, overrides=None):
-    load_models()
+    load_models(load_inflation=False)
     baselines = _get_province_simulation_baselines()
     if province not in baselines:
         raise KeyError(f"Provinsi '{province}' tidak ditemukan")
@@ -172,7 +182,7 @@ def _build_simulation_input(province, overrides=None):
 
     return pd.DataFrame([feature_row]), baseline
 
-def load_models():
+def load_models(load_inflation=True):
     global LSTM_MODEL, LSTM_SCALER_X, LSTM_SCALER_Y, RIDGE_MODEL, RIDGE_MODEL_BUNDLE, INFLASI_PRED_MEM, DATA_HISTORIS, LSTM_FEATURES, RATA_PENGELUARAN, RIDGE_SIMULATION_DEFAULTS
     
     project_root = os.path.dirname(settings.BASE_DIR)
@@ -195,6 +205,9 @@ def load_models():
         RIDGE_SIMULATION_DEFAULTS = _build_ridge_simulation_defaults(project_root)
         if RIDGE_SIMULATION_DEFAULTS is not None:
             RATA_PENGELUARAN = RIDGE_SIMULATION_DEFAULTS['RATA_PENGELUARAN']
+
+    if not load_inflation:
+        return INFLASI_PRED_MEM, DATA_HISTORIS, RATA_PENGELUARAN
             
     lstm_path = os.path.join(models_dir, 'lstm_model.pt')
     scaler_x_path = os.path.join(models_dir, 'lstm_scaler_x.pkl')
@@ -220,7 +233,7 @@ def load_models():
             return INFLASI_PRED_MEM, DATA_HISTORIS, RATA_PENGELUARAN
         
         # Load checkpoint
-        checkpoint = torch.load(lstm_path, weights_only=False)
+        checkpoint = torch.load(lstm_path, map_location=torch.device('cpu'), weights_only=False)
         if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
             input_size = checkpoint.get('input_size', 44)
             seq_length = checkpoint.get('seq_length', 12)
@@ -340,7 +353,14 @@ def load_models():
 
 
 def landing_page(request):
-    inflasi_pred, _, rata_pengeluaran = load_models()
+    load_models(load_inflation=False)
+    forecast_payload = _get_inflation_forecast_payload()
+    public_horizon = ((forecast_payload or {}).get('horizons') or {}).get('1m', {})
+    top_models = public_horizon.get('top_models') or []
+    top_model = top_models[0] if top_models else {}
+    inflasi_pred = _safe_float(public_horizon.get('headline_forecast'))
+    headline_interval = public_horizon.get('headline_interval') or {}
+    rata_pengeluaran = RATA_PENGELUARAN
     
     # Ambil data tambahan dari dataset clean_daya_beli.csv untuk visualisasi Overview
     project_root = os.path.dirname(settings.BASE_DIR)
@@ -366,8 +386,14 @@ def landing_page(request):
 
     context = {
         'inflasi_pred': float(inflasi_pred) if inflasi_pred else 0.0,
+        'inflasi_model_name': top_model.get('name', 'Model publik aktif'),
+        'inflasi_interval_lower': top_model.get('ci_lower', headline_interval.get('lower')),
+        'inflasi_interval_upper': top_model.get('ci_upper', headline_interval.get('upper')),
+        'public_horizon_label': public_horizon.get('label', '1 Bulan'),
+        'forecast_generated_at': (forecast_payload or {}).get('generated_at'),
         'rata_pengeluaran': "{:,.0f}".format(rata_pengeluaran).replace(',', '.'),
-        'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0) * 100, 1),
+        'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
+        'province_count': len(_get_province_simulation_baselines()),
         'chart_labels': json.dumps(chart_labels),
         'ump_data': json.dumps(ump_data),
         'pdrb_data': json.dumps(pdrb_data),
@@ -377,69 +403,9 @@ def landing_page(request):
 
 
 def forecasting_page(request):
-    inflasi_pred, _, _ = load_models()
-    load_ensemble()
-    
-    project_root = os.path.dirname(settings.BASE_DIR)
-    data_path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
-    
-    # Load full historical data
-    df = pd.read_csv(data_path, parse_dates=['Tanggal'])
-    df = df.sort_values('Tanggal').reset_index(drop=True)
-    
-    # Default range: last 5 years
-    default_start_year = max(df['Tanggal'].dt.year.min(), df['Tanggal'].dt.year.max() - 4)
-    default_end_year = df['Tanggal'].dt.year.max()
-    
-    # Build full history JSON
-    history = {
-        'labels': df['Tanggal'].dt.strftime('%Y-%m').tolist(),
-        'data_mom': [round(float(v), 2) if not pd.isna(v) else None for v in df['Inflasi_MoM']],
-        'data_yoy': [round(float(v), 2) if not pd.isna(v) else None for v in df['Inflasi_YoY']],
-    }
-    
-    # Year range options
-    year_min = int(df['Tanggal'].dt.year.min())
-    year_max = int(df['Tanggal'].dt.year.max())
-    
-    # Get next-month prediction
-    last_date = df['Tanggal'].iloc[-1]
-    next_date = (last_date + pd.DateOffset(months=1)).strftime('%Y-%m')
-    last_value = float(df['Inflasi_MoM'].iloc[-1])
-    
-    # Get ensemble forecast (1 month)
-    ensemble_pred = float(inflasi_pred) if inflasi_pred else 0.0
-    
-    # Get other model predictions
-    model_preds = {
-        'lstm': ensemble_pred,
-    }
-    if ENSEMBLE_FORECAST is not None:
-        # Format ensemble_forecast.pkl: flat keys 'lstm_forecast', 'arima_forecast', etc.
-        lstm_fc = ENSEMBLE_FORECAST.get('lstm_forecast', [])
-        arima_fc = ENSEMBLE_FORECAST.get('arima_forecast', [])
-        prophet_fc = ENSEMBLE_FORECAST.get('prophet_forecast', [])
-        ensemble_fc = ENSEMBLE_FORECAST.get('ensemble_forecast', [])
-        if lstm_fc and len(lstm_fc) > 0:
-            model_preds['lstm'] = float(lstm_fc[0])
-        if arima_fc and len(arima_fc) > 0:
-            model_preds['arima'] = float(arima_fc[0])
-        if prophet_fc and len(prophet_fc) > 0:
-            model_preds['prophet'] = float(prophet_fc[0])
-        if ensemble_fc and len(ensemble_fc) > 0:
-            model_preds['ensemble'] = float(ensemble_fc[0])
-    
+    forecast_payload = _get_inflation_forecast_payload()
     context = {
-        'inflasi_pred': ensemble_pred,
-        'last_value': last_value,
-        'last_date': last_date.strftime('%Y-%m'),
-        'next_date': next_date,
-        'history': json.dumps(history),
-        'model_preds': json.dumps(model_preds),
-        'year_min': year_min,
-        'year_max': year_max,
-        'default_start_year': int(default_start_year),
-        'default_end_year': int(default_end_year),
+        'forecast_payload_json': json.dumps(forecast_payload or {}),
     }
     return render(request, 'predictions/forecasting.html', context)
 
@@ -450,7 +416,7 @@ def get_regression_dummy_data(inflasi_val):
     return dummy_input
 
 def daya_beli_page(request):
-    load_models()
+    load_models(load_inflation=False)
 
     baselines = _get_province_simulation_baselines()
     province_names = sorted(baselines.keys())
@@ -499,7 +465,7 @@ def simulate_daya_beli(request):
     except ValueError:
         return JsonResponse({'error': 'Input numerik tidak valid'}, status=400)
 
-    load_models()
+    load_models(load_inflation=False)
     if RIDGE_MODEL is None:
         return JsonResponse({'error': 'Model belum siap'}, status=500)
     if (RIDGE_MODEL_BUNDLE or {}).get('legacy_artifact'):
@@ -545,9 +511,21 @@ def simulate_daya_beli(request):
 
 
 def home_page(request):
-    load_models()
+    load_models(load_inflation=False)
+    forecast_payload = _get_inflation_forecast_payload()
+    public_horizon = ((forecast_payload or {}).get('horizons') or {}).get('1m', {})
+    top_models = public_horizon.get('top_models') or []
+    top_model = top_models[0] if top_models else {}
+    inflasi_pred = _safe_float(public_horizon.get('headline_forecast'))
+    headline_interval = public_horizon.get('headline_interval') or {}
     context = {
-        'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0) * 100, 1),
+        'inflasi_pred': float(inflasi_pred) if inflasi_pred else 0.0,
+        'inflasi_model_name': top_model.get('name', 'Model publik aktif'),
+        'inflasi_interval_lower': top_model.get('ci_lower', headline_interval.get('lower')),
+        'inflasi_interval_upper': top_model.get('ci_upper', headline_interval.get('upper')),
+        'public_horizon_label': public_horizon.get('label', '1 Bulan'),
+        'forecast_generated_at': (forecast_payload or {}).get('generated_at'),
+        'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
         'province_count': len(_get_province_simulation_baselines()),
     }
     return render(request, 'predictions/home.html', context)
@@ -757,7 +735,7 @@ def api_province_data(request):
 
 def api_commodity_prices(request):
     """Return commodity prices and predicted inflation for Rupiah Purchasing Power feature."""
-    load_models()
+    load_models(load_inflation=False)
 
     # Check if World Bank CSV exists
     project_root = os.path.dirname(settings.BASE_DIR)
@@ -781,7 +759,8 @@ def api_commodity_prices(request):
         "daging_ayam": {"name": "Daging Ayam", "price": 35000, "unit": "Rp/kg", "change_pct": 1.2},
     }
 
-    inflasi_val = float(INFLASI_PRED_MEM) if INFLASI_PRED_MEM is not None else 2.5
+    public_horizon = _get_public_horizon_forecast('1m')
+    inflasi_val = _safe_float(public_horizon.get('headline_forecast'), 2.5)
 
     return JsonResponse({
         "commodities": commodities,
@@ -820,17 +799,34 @@ def api_usd_idr_latest(request):
     """Return the latest USD/IDR rate and its previous daily observation."""
     import urllib.request
     import json as json_lib
-    from datetime import date, timedelta
+    from datetime import date, datetime, timedelta
     
     project_root = os.path.dirname(settings.BASE_DIR)
     path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
     
-    # Frankfurter returns one consistent daily series and skips non-trading days.
+    # Prefer the latest daily reference first, then enrich it with recent history.
     daily_rate = None
     daily_date = None
     previous_rate = None
     previous_date = None
     daily_history = []
+    source_label = None
+
+    try:
+        latest_url = "https://open.er-api.com/v6/latest/USD"
+        req = urllib.request.Request(latest_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json_lib.loads(resp.read().decode())
+            idr_rate = (data.get('rates') or {}).get('IDR')
+            if idr_rate is not None:
+                daily_rate = round(float(idr_rate), 2)
+                source_label = 'open.er-api.com (latest daily reference)'
+                updated_unix = data.get('time_last_update_unix')
+                if updated_unix:
+                    daily_date = datetime.utcfromtimestamp(int(updated_unix)).date().isoformat()
+    except Exception:
+        pass
+
     try:
         end_date = date.today()
         start_date = end_date - timedelta(days=14)
@@ -851,12 +847,19 @@ def api_usd_idr_latest(request):
                 if rates.get('IDR') is not None
             )
             if observations:
-                daily_date, daily_rate = observations[-1]
-                daily_rate = round(float(daily_rate), 2)
                 daily_history = [round(float(rate), 2) for _, rate in observations[-10:]]
-            if len(observations) >= 2:
-                previous_date, previous_rate = observations[-2]
-                previous_rate = round(float(previous_rate), 2)
+                if daily_rate is None:
+                    daily_date, daily_rate = observations[-1]
+                    daily_rate = round(float(daily_rate), 2)
+                    source_label = 'Frankfurter (central bank reference rates)'
+                if daily_date is not None:
+                    prior_observations = [
+                        (observation_date, round(float(rate), 2))
+                        for observation_date, rate in observations
+                        if observation_date < daily_date
+                    ]
+                    if prior_observations:
+                        previous_date, previous_rate = prior_observations[-1]
     except Exception:
         pass
     
@@ -876,6 +879,15 @@ def api_usd_idr_latest(request):
     except Exception:
         pass
     
+    comparison_is_previous_calendar_day = False
+    if daily_date and previous_date:
+        try:
+            comparison_is_previous_calendar_day = (
+                datetime.fromisoformat(daily_date).date() - datetime.fromisoformat(previous_date).date()
+            ).days == 1
+        except ValueError:
+            comparison_is_previous_calendar_day = False
+
     # Use daily data when available, otherwise retain the existing monthly fallback.
     latest = daily_rate if daily_rate else (monthly_rate if monthly_rate else 18050)
     change_pct = 0
@@ -888,18 +900,20 @@ def api_usd_idr_latest(request):
 
     history = daily_history if daily_history else monthly_history
     
-    return JsonResponse({
+    return _json_no_store({
         'latest': latest,
         'daily_rate': daily_rate,
         'daily_date': daily_date,
         'previous_rate': previous_rate,
         'previous_date': previous_date,
+        'comparison_is_previous_calendar_day': comparison_is_previous_calendar_day,
         'monthly_rate': monthly_rate,
         'monthly_date': monthly_date,
         'change_pct': round(change_pct, 2),
         'history': history,
-        'source': 'Frankfurter (central bank reference rates)' if daily_rate else 'BPS (monthly avg)',
-        'data_type': 'daily' if daily_rate else 'monthly_avg'
+        'source': source_label if daily_rate else 'BPS (monthly avg)',
+        'data_type': 'daily' if daily_rate else 'monthly_avg',
+        'generated_at': datetime.utcnow().isoformat() + 'Z',
     })
 
 
@@ -984,8 +998,59 @@ def load_ensemble():
             ENSEMBLE_METRICS = None
 
 
+def _get_inflation_forecast_payload(force_refresh=False):
+    global INFLATION_FORECAST_PAYLOAD
+    if force_refresh or INFLATION_FORECAST_PAYLOAD is None:
+        project_root = os.path.dirname(settings.BASE_DIR)
+        INFLATION_FORECAST_PAYLOAD = load_saved_forecast_payload(project_root)
+    return INFLATION_FORECAST_PAYLOAD
+
+
+def _get_public_horizon_forecast(horizon_key='1m'):
+    payload = _get_inflation_forecast_payload()
+    horizons = (payload or {}).get('horizons') or {}
+    return horizons.get(horizon_key) or {}
+
+
+def _build_legacy_ensemble_payload():
+    payload = _get_inflation_forecast_payload() or {}
+    horizon = (payload.get('horizons') or {}).get('1m') or {}
+    if not horizon:
+        return None
+
+    top_models = horizon.get('top_models') or []
+    comparison_rows = (payload.get('comparison_summary') or {}).get('1m', [])
+    comparison = {}
+    for row in comparison_rows:
+        metrics = row.get('metrics') or {}
+        if row.get('status') == 'ok':
+            comparison[row['id']] = {
+                'mae': round(_safe_float(metrics.get('mae')), 4),
+                'rmse': round(_safe_float(metrics.get('rmse')), 4),
+                'smape': round(_safe_float(metrics.get('smape')), 2),
+                'n_test': int(metrics.get('n_test', 0)),
+            }
+
+    forecast = {}
+    for model in top_models:
+        forecast[model['id']] = [model.get('point_forecast')]
+    return {
+        'available': True,
+        'forecast': forecast,
+        'weights': {},
+        'last_date': (payload.get('history') or {}).get('last_date'),
+        'last_value': (payload.get('history') or {}).get('last_actual_mom', 0),
+        'comparison': comparison,
+        'best_model': horizon.get('headline_model'),
+    }
+
+
 def api_ensemble_forecast(request):
     """Return ensemble forecast (LSTM + ARIMA + Prophet) + comparison metrics."""
+    legacy_payload = _build_legacy_ensemble_payload()
+    if legacy_payload is not None:
+        return _json_no_store(legacy_payload)
+
     load_ensemble()
     
     if ENSEMBLE_FORECAST is None:
@@ -1025,24 +1090,27 @@ def api_ensemble_forecast(request):
     })
 
 
+def api_inflation_forecast(request):
+    payload = _get_inflation_forecast_payload(force_refresh=True)
+    if payload is None:
+        return _json_no_store(
+            {'error': 'Artefak forecast multi-horizon belum tersedia. Jalankan train_inflation_multihorizon.py terlebih dahulu.'},
+            status=503,
+        )
+    return _json_no_store(payload)
+
+
 # ============================================================
 # INFLASI SUMMARY API (M-to-M, Y-o-Y, Y-to-D)
 # ============================================================
 
-INFLASI_SUMMARY_CACHE = None
-
 def api_inflasi_summary(request):
     """Return ringkasan inflasi: M-to-M, Y-o-Y, Y-to-D, dan histori 24 bulan."""
-    global INFLASI_SUMMARY_CACHE
-    
-    if INFLASI_SUMMARY_CACHE is not None:
-        return JsonResponse(INFLASI_SUMMARY_CACHE)
-    
     project_root = os.path.dirname(settings.BASE_DIR)
     data_path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
     
     if not os.path.exists(data_path):
-        return JsonResponse({'error': 'Data file not found'}, status=404)
+        return _json_no_store({'error': 'Data file not found'}, status=404)
     
     try:
         df = pd.read_csv(data_path, parse_dates=['Tanggal'])
@@ -1105,8 +1173,9 @@ def api_inflasi_summary(request):
             status = 'Tidak tersedia'
             status_color = 'neutral'
         
-        INFLASI_SUMMARY_CACHE = {
+        payload = {
             'as_of': last_date,
+            'date': last_date,
             'mom': {
                 'value': round(float(latest['Inflasi_MoM']), 2),
                 'change': round(mom_change, 2),
@@ -1128,10 +1197,10 @@ def api_inflasi_summary(request):
             'history': history
         }
         
-        return JsonResponse(INFLASI_SUMMARY_CACHE)
+        return _json_no_store(payload)
     
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return _json_no_store({'error': str(e)}, status=500)
 
 
 # ============================================================

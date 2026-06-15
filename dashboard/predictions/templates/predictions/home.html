@@ -427,6 +427,12 @@
         .stat-change.up { color: var(--positive); }
         .stat-change.down { color: var(--negative); }
         .stat-change.flat { color: var(--accent-primary); }
+        .stat-note {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
         .stat-spark { height: 30px; margin-top: 10px; }
 
         .features-grid {
@@ -631,7 +637,7 @@
             <span>IHK <strong>105.23</strong> <span class="up">▲ 0.12%</span></span>
             <span>USD/IDR <strong class="ticker-usd-value">Memuat...</strong> <span class="ticker-usd-change">—</span></span>
             <span>Brent Oil <strong>$78.45</strong> <span class="up">▲ 1.20%</span></span>
-            <span>Inflasi MoM <strong>0.28%</strong> <span class="up">▲ 0.03%</span></span>
+            <span>Forecast 1 bulan <strong>{{ inflasi_pred|floatformat:2 }}%</strong> <span class="up">pipeline publik</span></span>
             <span>UMP Jakarta <strong>Rp 5.39jt</strong></span>
             <span>IPM Nasional <strong>72.79</strong> <span class="up">▲ 0.45%</span></span>
             <span>TPT <strong>4.76%</strong> <span class="down">▼ 0.12%</span></span>
@@ -640,7 +646,7 @@
             <span>IHK <strong>105.23</strong> <span class="up">▲ 0.12%</span></span>
             <span>USD/IDR <strong class="ticker-usd-value">Memuat...</strong> <span class="ticker-usd-change">—</span></span>
             <span>Brent Oil <strong>$78.45</strong> <span class="up">▲ 1.20%</span></span>
-            <span>Inflasi MoM <strong>0.28%</strong> <span class="up">▲ 0.03%</span></span>
+            <span>Forecast 1 bulan <strong>{{ inflasi_pred|floatformat:2 }}%</strong> <span class="up">pipeline publik</span></span>
             <span>UMP Jakarta <strong>Rp 5.39jt</strong></span>
             <span>IPM Nasional <strong>72.79</strong> <span class="up">▲ 0.45%</span></span>
             <span>TPT <strong>4.76%</strong> <span class="down">▼ 0.12%</span></span>
@@ -654,7 +660,7 @@
             <div class="hero-copy reveal" data-parallax="0.16">
                 <div class="hero-badge">
                     <span class="dot"></span>
-                    LIVE DATA — ECONOMIC MONITORING
+                    LIVE DATA - ECONOMIC MONITORING
                 </div>
                 <h1>
                     Analisis tren ekonomi,
@@ -676,7 +682,7 @@
                     </a>
                 </div>
                 <div class="hero-note">
-                    Dirancang untuk kebutuhan analisis akademik, pemetaan kebijakan, dan demonstrasi profesional.
+                    Dirancang untuk analisis akademik, pembacaan kebijakan, dan demonstrasi profesional.
                 </div>
             </div>
 
@@ -698,9 +704,9 @@
                     </div>
                     <div class="terminal-panels">
                         <div class="terminal-panel">
-                            <small>Model daya beli</small>
-                            <strong>{{ ridge_test_r2|floatformat:1 }}%</strong>
-                            <span>Skor uji Ridge Regression untuk estimasi pengeluaran per kapita.</span>
+                            <small>Skor model daya beli</small>
+                            <strong>{{ ridge_test_r2|floatformat:3 }}</strong>
+                            <span>Skor R² data uji Ridge Regression, bukan persentase akurasi klasifikasi.</span>
                         </div>
                         <div class="terminal-panel">
                             <small>Provinsi tercakup</small>
@@ -722,15 +728,16 @@
             </div>
             <div class="stats-grid stagger">
                 <div class="stat-card" data-parallax="0.05">
-                    <div class="stat-label">Inflasi MoM Prediksi</div>
-                    <div class="stat-value" style="color: var(--accent-primary);">0.55%</div>
-                    <div class="stat-change up"><i class="fas fa-chart-line"></i> Ensemble Forecast</div>
+                    <div class="stat-label">Forecast publik horizon {{ public_horizon_label }}</div>
+                    <div class="stat-value" style="color: var(--accent-primary);">{{ inflasi_pred|floatformat:2 }}%</div>
+                    <div class="stat-change up"><i class="fas fa-chart-line"></i> Model utama {{ inflasi_model_name }}</div>
+                    <div class="stat-note">Rentang estimasi saat ini {{ inflasi_interval_lower|floatformat:2 }}% sampai {{ inflasi_interval_upper|floatformat:2 }}%.</div>
                     <div class="stat-spark"><canvas id="spark-inflasi"></canvas></div>
                 </div>
                 <div class="stat-card" data-parallax="0.08">
-                    <div class="stat-label">R² Akurasi Model</div>
-                    <div class="stat-value" style="color: var(--positive);">{{ ridge_test_r2|floatformat:1 }}%</div>
-                    <div class="stat-change up"><i class="fas fa-check-circle"></i> Evaluasi data uji</div>
+                    <div class="stat-label">Skor R² model daya beli</div>
+                    <div class="stat-value" style="color: var(--positive);">{{ ridge_test_r2|floatformat:3 }}</div>
+                    <div class="stat-change up"><i class="fas fa-check-circle"></i> Variasi data uji yang dijelaskan model</div>
                     <div class="stat-spark"><canvas id="spark-r2"></canvas></div>
                 </div>
                 <div class="stat-card" data-parallax="0.11">
@@ -760,7 +767,7 @@
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-brain"></i></div>
                     <h3>Forecasting Inflasi</h3>
-                    <p>Prediksi inflasi multivariat dengan LSTM, ARIMA, dan ensemble untuk membaca tekanan harga jangka dekat.</p>
+                    <p>Forecast multi-horizon 1, 3, 6, dan 12 bulan dengan dua model terbaik per horizon dan rentang estimasi berbasis residual backtest.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-wallet"></i></div>
@@ -813,7 +820,7 @@
                     <div class="flow-step" data-parallax="0.10">
                         <span class="flow-no">3</span>
                         <h3>Model</h3>
-                        <p>LSTM dan ensemble dipakai untuk inflasi, Ridge Regression dipakai untuk estimasi daya beli.</p>
+                        <p>Setiap horizon inflasi diranking ulang dengan MAE walk-forward, lalu Ridge Regression dipakai untuk estimasi daya beli per provinsi.</p>
                     </div>
                     <div class="flow-step" data-parallax="0.13">
                         <span class="flow-no">4</span>
@@ -830,8 +837,8 @@
             <div class="footer-copy">
                 <h3>Masuk ke dashboard saat butuh angka. Buka panduan saat butuh konteks.</h3>
                 <p>
-                    Landing page ini sengaja tetap profesional dan ringkas. Untuk penjelasan istilah, kamu sudah punya halaman panduan.
-                    Untuk kerja analitis, user bisa langsung masuk ke dashboard operasional.
+                    Halaman awal ini sengaja tetap ringkas dan profesional. Untuk istilah teknis ada halaman panduan,
+                    sedangkan pekerjaan analitis penuh bisa langsung dilanjutkan di dashboard operasional.
                 </p>
             </div>
             <div class="footer-actions">
@@ -875,9 +882,9 @@
             });
         }
 
-        drawSpark('spark-r2', [70, 72, 73, 75, 74, 76, {{ ridge_test_r2|floatformat:1 }}], '#26A69A');
+        drawSpark('spark-r2', [0.72, 0.76, 0.79, 0.82, 0.84, 0.87, {{ ridge_test_r2|floatformat:3 }}], '#26A69A');
         drawSpark('spark-prov', [30, 32, 34, 36, 37, {{ province_count|default:38 }}, {{ province_count|default:38 }}], '#AB47BC');
-        drawSpark('spark-inflasi', [0.20, 0.22, 0.25, 0.23, 0.28, 0.30, 0.28, 0.55], '#2962FF');
+        drawSpark('spark-inflasi', [0.20, 0.22, 0.25, 0.23, 0.28, 0.30, 0.28, {{ inflasi_pred|floatformat:2 }}], '#2962FF');
 
         function formatUsdDate(dateString) {
             if (!dateString) return 'Tanggal tidak tersedia';
@@ -889,7 +896,10 @@
             });
         }
 
-        fetch('/api/usd-idr/')
+        fetch('/api/usd-idr/', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        })
             .then((response) => {
                 if (!response.ok) throw new Error('Gagal memuat kurs');
                 return response.json();
@@ -901,7 +911,9 @@
                 const sign = change > 0 ? '+' : change < 0 ? '-' : '';
                 const formattedRate = 'Rp ' + Math.round(rate).toLocaleString('id-ID');
                 const comparisonDate = data.previous_date
-                    ? 'vs ' + formatUsdDate(data.previous_date)
+                    ? data.comparison_is_previous_calendar_day
+                        ? 'vs ' + formatUsdDate(data.previous_date)
+                        : 'vs observasi harian terakhir (' + formatUsdDate(data.previous_date) + ')'
                     : 'perubahan sebelumnya belum tersedia';
 
                 document.getElementById('home-usd-value').textContent = formattedRate;
