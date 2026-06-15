@@ -8,32 +8,46 @@ from django.urls import reverse
 class UsdIdrApiTests(TestCase):
     @patch("urllib.request.urlopen")
     def test_uses_latest_two_daily_rates_for_change(self, mock_urlopen):
-        payload = {
+        latest_payload = {
+            "result": "success",
+            "time_last_update_unix": 1781481600,
+            "rates": {
+                "IDR": 17831.64,
+            },
+        }
+        history_payload = {
             "amount": 1.0,
             "base": "USD",
             "start_date": "2026-06-09",
-            "end_date": "2026-06-11",
+            "end_date": "2026-06-12",
             "rates": {
-                "2026-06-09": {"IDR": 17950},
-                "2026-06-10": {"IDR": 17910},
-                "2026-06-11": {"IDR": 17974},
+                "2026-06-10": {"IDR": 17950},
+                "2026-06-11": {"IDR": 17910},
+                "2026-06-12": {"IDR": 17788},
             },
         }
-        response = MagicMock()
-        response.read.return_value = json.dumps(payload).encode()
-        response.__enter__.return_value = response
-        mock_urlopen.return_value = response
+
+        latest_response = MagicMock()
+        latest_response.read.return_value = json.dumps(latest_payload).encode()
+        latest_response.__enter__.return_value = latest_response
+
+        history_response = MagicMock()
+        history_response.read.return_value = json.dumps(history_payload).encode()
+        history_response.__enter__.return_value = history_response
+
+        mock_urlopen.side_effect = [latest_response, history_response]
 
         api_response = self.client.get(reverse("api_usd_idr_latest"))
         data = api_response.json()
 
         self.assertEqual(api_response.status_code, 200)
-        self.assertEqual(data["latest"], 17974)
-        self.assertEqual(data["daily_date"], "2026-06-11")
-        self.assertEqual(data["previous_rate"], 17910)
-        self.assertEqual(data["previous_date"], "2026-06-10")
-        self.assertEqual(data["change_pct"], 0.36)
-        self.assertEqual(data["history"], [17950, 17910, 17974])
+        self.assertEqual(data["latest"], 17831.64)
+        self.assertEqual(data["daily_date"], "2026-06-15")
+        self.assertEqual(data["previous_rate"], 17788.0)
+        self.assertEqual(data["previous_date"], "2026-06-12")
+        self.assertFalse(data["comparison_is_previous_calendar_day"])
+        self.assertEqual(data["change_pct"], 0.25)
+        self.assertEqual(data["history"], [17950.0, 17910.0, 17788.0])
         self.assertEqual(data["data_type"], "daily")
         self.assertIn("no-store", api_response["Cache-Control"])
 
@@ -45,12 +59,61 @@ class HomePageUsdIdrTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertGreater(response.context["ridge_test_r2"], 0)
+        self.assertIn("inflasi_pred", response.context)
+        self.assertIn("inflasi_model_name", response.context)
         self.assertContains(response, 'id="home-usd-value"')
         self.assertContains(response, 'id="home-usd-change"')
         self.assertContains(response, 'id="home-usd-date"')
+        self.assertContains(response, "Skor R² model daya beli")
+        self.assertNotContains(response, "Akurasi Model")
+        self.assertNotIn(">0.55%</div>", html)
         self.assertIn("fetch('/api/usd-idr/', {", html)
         self.assertIn("cache: 'no-store'", html)
         self.assertContains(response, "Buka Panduan")
+
+    def test_home_and_landing_use_same_primary_inflation_forecast(self):
+        home_response = self.client.get(reverse("home"))
+        landing_response = self.client.get(reverse("landing"))
+
+        self.assertEqual(home_response.status_code, 200)
+        self.assertEqual(landing_response.status_code, 200)
+        self.assertAlmostEqual(
+            float(home_response.context["inflasi_pred"]),
+            float(landing_response.context["inflasi_pred"]),
+            places=6,
+        )
+        self.assertEqual(
+            home_response.context["inflasi_model_name"],
+            landing_response.context["inflasi_model_name"],
+        )
+
+    def test_forecasting_page_embeds_multi_horizon_payload(self):
+        response = self.client.get(reverse("forecasting"))
+        payload = json.loads(response.context["forecast_payload_json"])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("horizons", payload)
+        self.assertIn("1m", payload["horizons"])
+        self.assertAlmostEqual(
+            float(payload["horizons"]["1m"]["headline_forecast"]),
+            float(payload["horizons"]["1m"]["top_models"][0]["point_forecast"]),
+            places=6,
+        )
+
+    def test_inflation_forecast_api_returns_multi_horizon_contract(self):
+        response = self.client.get(reverse("api_inflation_forecast"))
+        data = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("generated_at", data)
+        self.assertIn("history", data)
+        self.assertIn("horizons", data)
+        self.assertEqual(sorted(data["horizons"].keys()), ["12m", "1m", "3m", "6m"])
+        one_month = data["horizons"]["1m"]
+        self.assertEqual(len(one_month["top_models"]), 2)
+        self.assertIn("headline_model", one_month)
+        self.assertIn("headline_forecast", one_month)
+        self.assertIn("risk_note", one_month)
 
 
 class DayaBeliSimulationTests(TestCase):
@@ -118,6 +181,9 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "Perubahan harga bulan ini")
         self.assertContains(response, "Perbandingan dengan bulan yang sama tahun lalu")
         self.assertContains(response, "Akumulasi sejak Januari")
+        self.assertContains(response, "Skor R² model daya beli")
+        self.assertNotContains(response, "Akurasi model daya beli")
+        self.assertContains(response, "Model utama")
         self.assertIn(reverse("guide"), html)
 
     def test_inflation_summary_api_uses_no_store_headers(self):
@@ -125,6 +191,14 @@ class GuideAndDashboardTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])
+
+    def test_inflation_summary_api_includes_date_aliases(self):
+        response = self.client.get(reverse("api_inflasi_summary"))
+        data = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("as_of", data)
+        self.assertEqual(data["date"], data["as_of"])
 
 
 class EconomicMapPageTests(TestCase):
