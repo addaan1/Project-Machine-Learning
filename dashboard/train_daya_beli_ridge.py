@@ -207,7 +207,6 @@ def main():
                 "rmse": round(bundle["walk_forward"]["mean"]["rmse"], 2),
             },
         )
-    return bundle
 
 
 if __name__ == "__main__":
