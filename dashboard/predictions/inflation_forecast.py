@@ -147,3 +147,25 @@ def make_forecast_payload(
         "horizons": horizon_results,
         "comparison_summary": comparison_summary,
     }
+
+def recursive_forecast(model, steps: int, exog_future: pd.DataFrame | None = None):
+    """
+    Forecast `steps` bulan secara berurutan.
+    - model: objek statsmodels/prophet yang sudah ter‑fit.
+    - exog_future: DataFrame eksogen yang sudah diprediksi (jika ada).
+    """
+    preds = []
+    past = model.endog.copy()               # nilai terakhir yang diketahui
+    for h in range(1, steps + 1):
+        # untuk statsmodels gunakan `forecast` satu langkah
+        if hasattr(model, "forecast"):
+            step_pred = model.forecast(steps=1, exog=exog_future.iloc[[h-1]] if exog_future is not None else None)
+        else:                                 # Prophet
+            df = pd.DataFrame({"ds": [model.make_future_dataframe(periods=1).ds.iloc[-1]]})
+            step_pred = model.predict(df).yhat.values[0]
+        preds.append(step_pred.item())
+        # update series dengan prediksi tadi (hanya untuk model yang memerlukan history)
+        past = np.append(past, step_pred)
+        if hasattr(model, "update"):
+            model = model.apply(past)         # beberapa model statsmodels punya .apply()
+    return np.array(preds)

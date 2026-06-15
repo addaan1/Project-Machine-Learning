@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-15T07:03:15.153288Z",
+  "generated_at": "2026-06-15T17:11:06.262258Z",
   "interval_level": 0.9,
   "assumptions": {
     "future_exog": "Untuk forecast publik, indikator eksogen masa depan diasumsikan bergerak dekat observasi terakhir (flat baseline).",
@@ -118,11 +118,11 @@
       "label": "1 Bulan",
       "forecast_months": 1,
       "forecast_date": "2026-06",
-      "headline_model": "sarimax",
-      "headline_forecast": 0.3609,
+      "headline_model": "arima",
+      "headline_forecast": 0.2574,
       "headline_interval": {
-        "lower": -0.2453,
-        "upper": 0.9454,
+        "lower": -0.3889,
+        "upper": 0.818,
         "level": 90
       },
       "future_labels": [
@@ -130,16 +130,16 @@
       ],
       "top_models": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
+          "id": "arima",
+          "name": "ARIMA",
           "rank": 1,
-          "point_forecast": 0.3609,
-          "ci_lower": -0.2453,
-          "ci_upper": 0.9454,
+          "point_forecast": 0.2574,
+          "ci_lower": -0.3889,
+          "ci_upper": 0.818,
           "metrics": {
-            "mae": 0.3194,
-            "rmse": 0.4647,
-            "smape": 108.94,
+            "mae": 0.3401,
+            "rmse": 0.4865,
+            "smape": 107.0,
             "n_test": 24,
             "interval_level": 90
           },
@@ -151,16 +151,16 @@
           "interval_note": null
         },
         {
-          "id": "arima",
-          "name": "ARIMA",
+          "id": "ensemble",
+          "name": "Ensemble",
           "rank": 2,
-          "point_forecast": 0.2366,
-          "ci_lower": -0.4098,
-          "ci_upper": 0.7935,
+          "point_forecast": 0.2343,
+          "ci_lower": -0.5445,
+          "ci_upper": 0.8866,
           "metrics": {
-            "mae": 0.3396,
-            "rmse": 0.4861,
-            "smape": 106.94,
+            "mae": 0.3535,
+            "rmse": 0.5334,
+            "smape": 116.71,
             "n_test": 24,
             "interval_level": 90
           },
@@ -229,30 +229,17 @@
       "risk_note": "Horizon 1 bulan lebih cocok untuk pembacaan taktis jangka dekat.",
       "comparison": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.3194,
-            "rmse": 0.4647,
-            "smape": 108.94,
-            "n_test": 24
-          },
-          "point_forecast": 0.3609
-        },
-        {
           "id": "arima",
           "name": "ARIMA",
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3396,
-            "rmse": 0.4861,
-            "smape": 106.94,
+            "mae": 0.3401,
+            "rmse": 0.4865,
+            "smape": 107.0,
             "n_test": 24
           },
-          "point_forecast": 0.2366
+          "point_forecast": 0.2574
         },
         {
           "id": "ensemble",
@@ -260,30 +247,17 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3433,
-            "rmse": 0.4931,
-            "smape": 110.1,
+            "mae": 0.3535,
+            "rmse": 0.5334,
+            "smape": 116.71,
             "n_test": 24
           },
-          "point_forecast": 0.3614,
+          "point_forecast": 0.2343,
           "weights": {
-            "arima": 0.3446,
-            "sarimax": 0.3663,
-            "prophet": 0.2891
+            "arima": 0.3859,
+            "sarimax": 0.2892,
+            "prophet": 0.3249
           }
-        },
-        {
-          "id": "lstm",
-          "name": "LSTM",
-          "status": "ok",
-          "metric_source": "chronological_holdout",
-          "metrics": {
-            "mae": 0.356,
-            "rmse": 0.4921,
-            "smape": 112.97,
-            "n_test": 24
-          },
-          "point_forecast": 0.2961
         },
         {
           "id": "bilstm",
@@ -291,12 +265,12 @@
           "status": "ok",
           "metric_source": "chronological_holdout",
           "metrics": {
-            "mae": 0.3833,
-            "rmse": 0.4982,
-            "smape": 119.72,
+            "mae": 0.3959,
+            "rmse": 0.5187,
+            "smape": 110.64,
             "n_test": 24
           },
-          "point_forecast": 0.3705
+          "point_forecast": 0.305
         },
         {
           "id": "prophet",
@@ -304,12 +278,12 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.4048,
-            "rmse": 0.5997,
-            "smape": 122.14,
+            "mae": 0.4038,
+            "rmse": 0.5988,
+            "smape": 122.73,
             "n_test": 24
           },
-          "point_forecast": 0.5106
+          "point_forecast": 0.0944
         },
         {
           "id": "naive",
@@ -323,6 +297,32 @@
             "n_test": 24
           },
           "point_forecast": 0.28
+        },
+        {
+          "id": "sarimax",
+          "name": "SARIMAX",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.4538,
+            "rmse": 0.6797,
+            "smape": 122.01,
+            "n_test": 24
+          },
+          "point_forecast": 0.3609
+        },
+        {
+          "id": "lstm",
+          "name": "LSTM",
+          "status": "ok",
+          "metric_source": "chronological_holdout",
+          "metrics": {
+            "mae": 0.5131,
+            "rmse": 0.6251,
+            "smape": 117.1,
+            "n_test": 24
+          },
+          "point_forecast": 0.5859
         },
         {
           "id": "garch",
@@ -340,9 +340,9 @@
           "FAO_FPI"
         ],
         "base_metrics": {
-          "mae": 0.3194,
-          "rmse": 0.4647,
-          "smape": 108.94,
+          "mae": 0.4538,
+          "rmse": 0.6797,
+          "smape": 122.01,
           "n_test": 24
         },
         "method": "drop-one walk-forward ablation",
@@ -356,49 +356,13 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3492,
-              "rmse": 0.4891,
-              "smape": 114.25,
+              "mae": 0.4538,
+              "rmse": 0.6797,
+              "smape": 122.01,
               "n_test": 24
             },
-            "delta_mae": 0.0298,
-            "delta_rmse": 0.0245,
-            "interpretation": "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
-          },
-          {
-            "feature": "DXY",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "FAO_FPI"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.336,
-              "rmse": 0.4855,
-              "smape": 112.7,
-              "n_test": 24
-            },
-            "delta_mae": 0.0166,
-            "delta_rmse": 0.0208,
-            "interpretation": "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
-          },
-          {
-            "feature": "FAO_FPI",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "DXY"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.3289,
-              "rmse": 0.478,
-              "smape": 115.62,
-              "n_test": 24
-            },
-            "delta_mae": 0.0095,
-            "delta_rmse": 0.0133,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           },
           {
@@ -410,13 +374,49 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3214,
-              "rmse": 0.4677,
-              "smape": 108.73,
+              "mae": 0.4538,
+              "rmse": 0.6797,
+              "smape": 122.01,
               "n_test": 24
             },
-            "delta_mae": 0.002,
-            "delta_rmse": 0.003,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "DXY",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "FAO_FPI"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.4538,
+              "rmse": 0.6797,
+              "smape": 122.01,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "FAO_FPI",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "DXY"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.4538,
+              "rmse": 0.6797,
+              "smape": 122.01,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           }
         ]
@@ -426,11 +426,11 @@
       "label": "3 Bulan",
       "forecast_months": 3,
       "forecast_date": "2026-08",
-      "headline_model": "sarimax",
-      "headline_forecast": 0.362,
+      "headline_model": "arima",
+      "headline_forecast": 0.2706,
       "headline_interval": {
-        "lower": -0.2494,
-        "upper": 1.1942,
+        "lower": -0.4756,
+        "upper": 1.1441,
         "level": 90
       },
       "future_labels": [
@@ -438,16 +438,16 @@
       ],
       "top_models": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
+          "id": "arima",
+          "name": "ARIMA",
           "rank": 1,
-          "point_forecast": 0.362,
-          "ci_lower": -0.2494,
-          "ci_upper": 1.1942,
+          "point_forecast": 0.2706,
+          "ci_lower": -0.4756,
+          "ci_upper": 1.1441,
           "metrics": {
-            "mae": 0.3537,
-            "rmse": 0.4809,
-            "smape": 112.64,
+            "mae": 0.3731,
+            "rmse": 0.5098,
+            "smape": 110.96,
             "n_test": 24,
             "interval_level": 90
           },
@@ -462,13 +462,13 @@
           "id": "ensemble",
           "name": "Ensemble",
           "rank": 2,
-          "point_forecast": 0.3235,
-          "ci_lower": -0.2025,
-          "ci_upper": 1.3339,
+          "point_forecast": 0.1267,
+          "ci_lower": -0.4304,
+          "ci_upper": 1.3995,
           "metrics": {
-            "mae": 0.3594,
-            "rmse": 0.5122,
-            "smape": 114.5,
+            "mae": 0.3875,
+            "rmse": 0.5468,
+            "smape": 120.57,
             "n_test": 24,
             "interval_level": 90
           },
@@ -537,17 +537,17 @@
       "risk_note": "Horizon 3 bulan cocok untuk membaca arah kuartalan, tetapi tetap sensitif terhadap shock baru.",
       "comparison": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
+          "id": "arima",
+          "name": "ARIMA",
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3537,
-            "rmse": 0.4809,
-            "smape": 112.64,
+            "mae": 0.3731,
+            "rmse": 0.5098,
+            "smape": 110.96,
             "n_test": 24
           },
-          "point_forecast": 0.362
+          "point_forecast": 0.2706
         },
         {
           "id": "ensemble",
@@ -555,43 +555,17 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3594,
-            "rmse": 0.5122,
-            "smape": 114.5,
+            "mae": 0.3875,
+            "rmse": 0.5468,
+            "smape": 120.57,
             "n_test": 24
           },
-          "point_forecast": 0.3235,
+          "point_forecast": 0.1267,
           "weights": {
-            "arima": 0.3327,
-            "sarimax": 0.3512,
-            "prophet": 0.3161
+            "arima": 0.373,
+            "sarimax": 0.272,
+            "prophet": 0.355
           }
-        },
-        {
-          "id": "arima",
-          "name": "ARIMA",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.3735,
-            "rmse": 0.5099,
-            "smape": 111.1,
-            "n_test": 24
-          },
-          "point_forecast": 0.2528
-        },
-        {
-          "id": "prophet",
-          "name": "Prophet",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.393,
-            "rmse": 0.5942,
-            "smape": 115.63,
-            "n_test": 24
-          },
-          "point_forecast": 0.3551
         },
         {
           "id": "bilstm",
@@ -599,12 +573,25 @@
           "status": "ok",
           "metric_source": "chronological_holdout",
           "metrics": {
-            "mae": 0.4412,
-            "rmse": 0.5447,
-            "smape": 117.9,
+            "mae": 0.3912,
+            "rmse": 0.527,
+            "smape": 142.04,
             "n_test": 24
           },
-          "point_forecast": 0.6138
+          "point_forecast": 0.0937
+        },
+        {
+          "id": "prophet",
+          "name": "Prophet",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.392,
+            "rmse": 0.5926,
+            "smape": 116.44,
+            "n_test": 24
+          },
+          "point_forecast": -0.2046
         },
         {
           "id": "naive",
@@ -620,17 +607,30 @@
           "point_forecast": 0.28
         },
         {
+          "id": "sarimax",
+          "name": "SARIMAX",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.5117,
+            "rmse": 0.6925,
+            "smape": 131.37,
+            "n_test": 24
+          },
+          "point_forecast": 0.3619
+        },
+        {
           "id": "lstm",
           "name": "LSTM",
           "status": "ok",
           "metric_source": "chronological_holdout",
           "metrics": {
-            "mae": 0.6324,
-            "rmse": 0.7167,
-            "smape": 127.66,
+            "mae": 0.7686,
+            "rmse": 0.8668,
+            "smape": 132.17,
             "n_test": 24
           },
-          "point_forecast": 1.18
+          "point_forecast": 0.9174
         },
         {
           "id": "garch",
@@ -648,9 +648,9 @@
           "FAO_FPI"
         ],
         "base_metrics": {
-          "mae": 0.3537,
-          "rmse": 0.4809,
-          "smape": 112.64,
+          "mae": 0.5117,
+          "rmse": 0.6925,
+          "smape": 131.37,
           "n_test": 24
         },
         "method": "drop-one walk-forward ablation",
@@ -664,49 +664,13 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3944,
-              "rmse": 0.5207,
-              "smape": 114.9,
+              "mae": 0.5117,
+              "rmse": 0.6925,
+              "smape": 131.37,
               "n_test": 24
             },
-            "delta_mae": 0.0407,
-            "delta_rmse": 0.0397,
-            "interpretation": "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
-          },
-          {
-            "feature": "DXY",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "FAO_FPI"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.363,
-              "rmse": 0.4963,
-              "smape": 113.27,
-              "n_test": 24
-            },
-            "delta_mae": 0.0093,
-            "delta_rmse": 0.0153,
-            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
-          },
-          {
-            "feature": "FAO_FPI",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "DXY"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.363,
-              "rmse": 0.496,
-              "smape": 118.87,
-              "n_test": 24
-            },
-            "delta_mae": 0.0093,
-            "delta_rmse": 0.0151,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           },
           {
@@ -718,13 +682,49 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3506,
-              "rmse": 0.4789,
-              "smape": 111.99,
+              "mae": 0.5117,
+              "rmse": 0.6925,
+              "smape": 131.37,
               "n_test": 24
             },
-            "delta_mae": -0.0031,
-            "delta_rmse": -0.0021,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "DXY",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "FAO_FPI"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.5117,
+              "rmse": 0.6925,
+              "smape": 131.37,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "FAO_FPI",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "DXY"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.5117,
+              "rmse": 0.6925,
+              "smape": 131.37,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           }
         ]
@@ -734,11 +734,11 @@
       "label": "6 Bulan",
       "forecast_months": 6,
       "forecast_date": "2026-11",
-      "headline_model": "sarimax",
-      "headline_forecast": 0.4052,
+      "headline_model": "arima",
+      "headline_forecast": 0.3117,
       "headline_interval": {
-        "lower": -0.2302,
-        "upper": 1.2305,
+        "lower": -0.4573,
+        "upper": 1.1211,
         "level": 90
       },
       "future_labels": [
@@ -746,16 +746,16 @@
       ],
       "top_models": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
+          "id": "arima",
+          "name": "ARIMA",
           "rank": 1,
-          "point_forecast": 0.4052,
-          "ci_lower": -0.2302,
-          "ci_upper": 1.2305,
+          "point_forecast": 0.3117,
+          "ci_lower": -0.4573,
+          "ci_upper": 1.1211,
           "metrics": {
-            "mae": 0.3604,
-            "rmse": 0.4838,
-            "smape": 113.17,
+            "mae": 0.3744,
+            "rmse": 0.5121,
+            "smape": 109.88,
             "n_test": 24,
             "interval_level": 90
           },
@@ -767,16 +767,16 @@
           "interval_note": null
         },
         {
-          "id": "ensemble",
-          "name": "Ensemble",
+          "id": "prophet",
+          "name": "Prophet",
           "rank": 2,
-          "point_forecast": 0.3526,
-          "ci_lower": -0.1871,
-          "ci_upper": 1.3364,
+          "point_forecast": -0.5484,
+          "ci_lower": -1.1752,
+          "ci_upper": 0.8037,
           "metrics": {
-            "mae": 0.3612,
-            "rmse": 0.5132,
-            "smape": 114.07,
+            "mae": 0.3868,
+            "rmse": 0.5971,
+            "smape": 107.91,
             "n_test": 24,
             "interval_level": 90
           },
@@ -845,61 +845,17 @@
       "risk_note": "Horizon 6 bulan lebih cocok untuk orientasi kebijakan dibanding angka presisi.",
       "comparison": [
         {
-          "id": "lstm",
-          "name": "LSTM",
-          "status": "ok",
-          "metric_source": "chronological_holdout",
-          "metrics": {
-            "mae": 0.3569,
-            "rmse": 0.4943,
-            "smape": 116.21,
-            "n_test": 24
-          },
-          "point_forecast": 0.4484
-        },
-        {
-          "id": "sarimax",
-          "name": "SARIMAX",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.3604,
-            "rmse": 0.4838,
-            "smape": 113.17,
-            "n_test": 24
-          },
-          "point_forecast": 0.4052
-        },
-        {
-          "id": "ensemble",
-          "name": "Ensemble",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.3612,
-            "rmse": 0.5132,
-            "smape": 114.07,
-            "n_test": 24
-          },
-          "point_forecast": 0.3526,
-          "weights": {
-            "arima": 0.3318,
-            "sarimax": 0.3452,
-            "prophet": 0.323
-          }
-        },
-        {
           "id": "arima",
           "name": "ARIMA",
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3749,
-            "rmse": 0.5122,
-            "smape": 110.01,
+            "mae": 0.3744,
+            "rmse": 0.5121,
+            "smape": 109.88,
             "n_test": 24
           },
-          "point_forecast": 0.3088
+          "point_forecast": 0.3117
         },
         {
           "id": "prophet",
@@ -907,12 +863,12 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.385,
-            "rmse": 0.5937,
-            "smape": 107.21,
+            "mae": 0.3868,
+            "rmse": 0.5971,
+            "smape": 107.91,
             "n_test": 24
           },
-          "point_forecast": 0.3414
+          "point_forecast": -0.5484
         },
         {
           "id": "bilstm",
@@ -920,12 +876,43 @@
           "status": "ok",
           "metric_source": "chronological_holdout",
           "metrics": {
-            "mae": 0.4712,
-            "rmse": 0.6231,
-            "smape": 167.27,
+            "mae": 0.3884,
+            "rmse": 0.5265,
+            "smape": 125.44,
             "n_test": 24
           },
-          "point_forecast": -0.1792
+          "point_forecast": 0.0788
+        },
+        {
+          "id": "ensemble",
+          "name": "Ensemble",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.412,
+            "rmse": 0.5471,
+            "smape": 129.79,
+            "n_test": 24
+          },
+          "point_forecast": 0.0154,
+          "weights": {
+            "arima": 0.3833,
+            "sarimax": 0.2455,
+            "prophet": 0.3711
+          }
+        },
+        {
+          "id": "lstm",
+          "name": "LSTM",
+          "status": "ok",
+          "metric_source": "chronological_holdout",
+          "metrics": {
+            "mae": 0.4872,
+            "rmse": 0.5796,
+            "smape": 123.2,
+            "n_test": 24
+          },
+          "point_forecast": 0.7227
         },
         {
           "id": "naive",
@@ -939,6 +926,19 @@
             "n_test": 24
           },
           "point_forecast": 0.28
+        },
+        {
+          "id": "sarimax",
+          "name": "SARIMAX",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.5846,
+            "rmse": 0.7111,
+            "smape": 157.17,
+            "n_test": 24
+          },
+          "point_forecast": 0.4051
         },
         {
           "id": "garch",
@@ -956,9 +956,9 @@
           "FAO_FPI"
         ],
         "base_metrics": {
-          "mae": 0.3604,
-          "rmse": 0.4838,
-          "smape": 113.17,
+          "mae": 0.5846,
+          "rmse": 0.7111,
+          "smape": 157.17,
           "n_test": 24
         },
         "method": "drop-one walk-forward ablation",
@@ -972,49 +972,13 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3938,
-              "rmse": 0.521,
-              "smape": 114.08,
+              "mae": 0.5846,
+              "rmse": 0.7111,
+              "smape": 157.17,
               "n_test": 24
             },
-            "delta_mae": 0.0334,
-            "delta_rmse": 0.0372,
-            "interpretation": "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
-          },
-          {
-            "feature": "DXY",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "FAO_FPI"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.3665,
-              "rmse": 0.5014,
-              "smape": 113.85,
-              "n_test": 24
-            },
-            "delta_mae": 0.0062,
-            "delta_rmse": 0.0176,
-            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
-          },
-          {
-            "feature": "FAO_FPI",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "DXY"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.3645,
-              "rmse": 0.4976,
-              "smape": 119.37,
-              "n_test": 24
-            },
-            "delta_mae": 0.0042,
-            "delta_rmse": 0.0138,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           },
           {
@@ -1026,13 +990,49 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3589,
-              "rmse": 0.4849,
-              "smape": 113.3,
+              "mae": 0.5846,
+              "rmse": 0.7111,
+              "smape": 157.17,
               "n_test": 24
             },
-            "delta_mae": -0.0014,
-            "delta_rmse": 0.0011,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "DXY",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "FAO_FPI"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.5846,
+              "rmse": 0.7111,
+              "smape": 157.17,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "FAO_FPI",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "DXY"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.5846,
+              "rmse": 0.7111,
+              "smape": 157.17,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           }
         ]
@@ -1042,11 +1042,11 @@
       "label": "12 Bulan / 1 Tahun",
       "forecast_months": 12,
       "forecast_date": "2027-05",
-      "headline_model": "sarimax",
-      "headline_forecast": 0.4039,
+      "headline_model": "ensemble",
+      "headline_forecast": -0.0425,
       "headline_interval": {
-        "lower": -0.2663,
-        "upper": 1.2203,
+        "lower": -0.6667,
+        "upper": 0.9542,
         "level": 90
       },
       "future_labels": [
@@ -1054,16 +1054,16 @@
       ],
       "top_models": [
         {
-          "id": "sarimax",
-          "name": "SARIMAX",
+          "id": "ensemble",
+          "name": "Ensemble",
           "rank": 1,
-          "point_forecast": 0.4039,
-          "ci_lower": -0.2663,
-          "ci_upper": 1.2203,
+          "point_forecast": -0.0425,
+          "ci_lower": -0.6667,
+          "ci_upper": 0.9542,
           "metrics": {
-            "mae": 0.3605,
-            "rmse": 0.4862,
-            "smape": 112.61,
+            "mae": 0.3764,
+            "rmse": 0.5172,
+            "smape": 123.16,
             "n_test": 24,
             "interval_level": 90
           },
@@ -1075,16 +1075,16 @@
           "interval_note": null
         },
         {
-          "id": "ensemble",
-          "name": "Ensemble",
+          "id": "arima",
+          "name": "ARIMA",
           "rank": 2,
-          "point_forecast": 0.3362,
-          "ci_lower": -0.2565,
-          "ci_upper": 1.281,
+          "point_forecast": 0.3141,
+          "ci_lower": -0.4975,
+          "ci_upper": 1.0667,
           "metrics": {
-            "mae": 0.3645,
-            "rmse": 0.5148,
-            "smape": 112.78,
+            "mae": 0.3828,
+            "rmse": 0.5151,
+            "smape": 109.44,
             "n_test": 24,
             "interval_level": 90
           },
@@ -1153,48 +1153,35 @@
       "risk_note": "Horizon 12 bulan dipakai untuk membaca arah makro. Rentang estimasinya harus dibaca lebih hati-hati daripada angka titiknya.",
       "comparison": [
         {
-          "id": "lstm",
-          "name": "LSTM",
-          "status": "ok",
-          "metric_source": "chronological_holdout",
-          "metrics": {
-            "mae": 0.3514,
-            "rmse": 0.4921,
-            "smape": 143.8,
-            "n_test": 24
-          },
-          "point_forecast": 0.1656
-        },
-        {
-          "id": "sarimax",
-          "name": "SARIMAX",
-          "status": "ok",
-          "metric_source": "walk_forward",
-          "metrics": {
-            "mae": 0.3605,
-            "rmse": 0.4862,
-            "smape": 112.61,
-            "n_test": 24
-          },
-          "point_forecast": 0.4039
-        },
-        {
           "id": "ensemble",
           "name": "Ensemble",
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3645,
-            "rmse": 0.5148,
-            "smape": 112.78,
+            "mae": 0.3764,
+            "rmse": 0.5172,
+            "smape": 123.16,
             "n_test": 24
           },
-          "point_forecast": 0.3362,
+          "point_forecast": -0.0425,
           "weights": {
-            "arima": 0.3332,
-            "sarimax": 0.3536,
-            "prophet": 0.3133
+            "arima": 0.3649,
+            "sarimax": 0.2908,
+            "prophet": 0.3443
           }
+        },
+        {
+          "id": "lstm",
+          "name": "LSTM",
+          "status": "ok",
+          "metric_source": "chronological_holdout",
+          "metrics": {
+            "mae": 0.3792,
+            "rmse": 0.514,
+            "smape": 112.16,
+            "n_test": 24
+          },
+          "point_forecast": 0.1723
         },
         {
           "id": "arima",
@@ -1202,12 +1189,12 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.3826,
-            "rmse": 0.5155,
-            "smape": 109.4,
+            "mae": 0.3828,
+            "rmse": 0.5151,
+            "smape": 109.44,
             "n_test": 24
           },
-          "point_forecast": 0.3069
+          "point_forecast": 0.3141
         },
         {
           "id": "bilstm",
@@ -1215,12 +1202,12 @@
           "status": "ok",
           "metric_source": "chronological_holdout",
           "metrics": {
-            "mae": 0.4023,
-            "rmse": 0.5342,
-            "smape": 172.08,
+            "mae": 0.4002,
+            "rmse": 0.5189,
+            "smape": 112.9,
             "n_test": 24
           },
-          "point_forecast": -0.0361
+          "point_forecast": 0.5323
         },
         {
           "id": "prophet",
@@ -1228,12 +1215,12 @@
           "status": "ok",
           "metric_source": "walk_forward",
           "metrics": {
-            "mae": 0.407,
-            "rmse": 0.5978,
-            "smape": 127.28,
+            "mae": 0.4057,
+            "rmse": 0.5989,
+            "smape": 125.67,
             "n_test": 24
           },
-          "point_forecast": 0.291
+          "point_forecast": -0.7974
         },
         {
           "id": "naive",
@@ -1247,6 +1234,19 @@
             "n_test": 24
           },
           "point_forecast": 0.28
+        },
+        {
+          "id": "sarimax",
+          "name": "SARIMAX",
+          "status": "ok",
+          "metric_source": "walk_forward",
+          "metrics": {
+            "mae": 0.4804,
+            "rmse": 0.6186,
+            "smape": 135.63,
+            "n_test": 24
+          },
+          "point_forecast": 0.4038
         },
         {
           "id": "garch",
@@ -1264,9 +1264,9 @@
           "FAO_FPI"
         ],
         "base_metrics": {
-          "mae": 0.3605,
-          "rmse": 0.4862,
-          "smape": 112.61,
+          "mae": 0.4804,
+          "rmse": 0.6186,
+          "smape": 135.63,
           "n_test": 24
         },
         "method": "drop-one walk-forward ablation",
@@ -1280,49 +1280,13 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3952,
-              "rmse": 0.5201,
-              "smape": 113.86,
+              "mae": 0.4804,
+              "rmse": 0.6186,
+              "smape": 135.63,
               "n_test": 24
             },
-            "delta_mae": 0.0347,
-            "delta_rmse": 0.0338,
-            "interpretation": "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
-          },
-          {
-            "feature": "DXY",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "FAO_FPI"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.3667,
-              "rmse": 0.4975,
-              "smape": 113.27,
-              "n_test": 24
-            },
-            "delta_mae": 0.0062,
-            "delta_rmse": 0.0112,
-            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
-          },
-          {
-            "feature": "FAO_FPI",
-            "remaining_regressors": [
-              "Brent_USD",
-              "BI_Rate",
-              "DXY"
-            ],
-            "status": "ok",
-            "dropped_model_metrics": {
-              "mae": 0.3633,
-              "rmse": 0.4948,
-              "smape": 118.13,
-              "n_test": 24
-            },
-            "delta_mae": 0.0027,
-            "delta_rmse": 0.0086,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           },
           {
@@ -1334,13 +1298,49 @@
             ],
             "status": "ok",
             "dropped_model_metrics": {
-              "mae": 0.3544,
-              "rmse": 0.482,
-              "smape": 111.16,
+              "mae": 0.4804,
+              "rmse": 0.6186,
+              "smape": 135.63,
               "n_test": 24
             },
-            "delta_mae": -0.0061,
-            "delta_rmse": -0.0043,
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "DXY",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "FAO_FPI"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.4804,
+              "rmse": 0.6186,
+              "smape": 135.63,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
+            "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
+          },
+          {
+            "feature": "FAO_FPI",
+            "remaining_regressors": [
+              "Brent_USD",
+              "BI_Rate",
+              "DXY"
+            ],
+            "status": "ok",
+            "dropped_model_metrics": {
+              "mae": 0.4804,
+              "rmse": 0.6186,
+              "smape": 135.63,
+              "n_test": 24
+            },
+            "delta_mae": 0.0,
+            "delta_rmse": 0.0,
             "interpretation": "penghapusan fitur hampir tidak mengubah error; kontribusi fitur cenderung marjinal"
           }
         ]
@@ -1350,30 +1350,17 @@
   "comparison_summary": {
     "1m": [
       {
-        "id": "sarimax",
-        "name": "SARIMAX",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.3194,
-          "rmse": 0.4647,
-          "smape": 108.94,
-          "n_test": 24
-        },
-        "point_forecast": 0.3609
-      },
-      {
         "id": "arima",
         "name": "ARIMA",
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3396,
-          "rmse": 0.4861,
-          "smape": 106.94,
+          "mae": 0.3401,
+          "rmse": 0.4865,
+          "smape": 107.0,
           "n_test": 24
         },
-        "point_forecast": 0.2366
+        "point_forecast": 0.2574
       },
       {
         "id": "ensemble",
@@ -1381,30 +1368,17 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3433,
-          "rmse": 0.4931,
-          "smape": 110.1,
+          "mae": 0.3535,
+          "rmse": 0.5334,
+          "smape": 116.71,
           "n_test": 24
         },
-        "point_forecast": 0.3614,
+        "point_forecast": 0.2343,
         "weights": {
-          "arima": 0.3446,
-          "sarimax": 0.3663,
-          "prophet": 0.2891
+          "arima": 0.3859,
+          "sarimax": 0.2892,
+          "prophet": 0.3249
         }
-      },
-      {
-        "id": "lstm",
-        "name": "LSTM",
-        "status": "ok",
-        "metric_source": "chronological_holdout",
-        "metrics": {
-          "mae": 0.356,
-          "rmse": 0.4921,
-          "smape": 112.97,
-          "n_test": 24
-        },
-        "point_forecast": 0.2961
       },
       {
         "id": "bilstm",
@@ -1412,12 +1386,12 @@
         "status": "ok",
         "metric_source": "chronological_holdout",
         "metrics": {
-          "mae": 0.3833,
-          "rmse": 0.4982,
-          "smape": 119.72,
+          "mae": 0.3959,
+          "rmse": 0.5187,
+          "smape": 110.64,
           "n_test": 24
         },
-        "point_forecast": 0.3705
+        "point_forecast": 0.305
       },
       {
         "id": "prophet",
@@ -1425,12 +1399,12 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.4048,
-          "rmse": 0.5997,
-          "smape": 122.14,
+          "mae": 0.4038,
+          "rmse": 0.5988,
+          "smape": 122.73,
           "n_test": 24
         },
-        "point_forecast": 0.5106
+        "point_forecast": 0.0944
       },
       {
         "id": "naive",
@@ -1446,6 +1420,32 @@
         "point_forecast": 0.28
       },
       {
+        "id": "sarimax",
+        "name": "SARIMAX",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.4538,
+          "rmse": 0.6797,
+          "smape": 122.01,
+          "n_test": 24
+        },
+        "point_forecast": 0.3609
+      },
+      {
+        "id": "lstm",
+        "name": "LSTM",
+        "status": "ok",
+        "metric_source": "chronological_holdout",
+        "metrics": {
+          "mae": 0.5131,
+          "rmse": 0.6251,
+          "smape": 117.1,
+          "n_test": 24
+        },
+        "point_forecast": 0.5859
+      },
+      {
         "id": "garch",
         "name": "GARCH",
         "status": "skipped",
@@ -1455,17 +1455,17 @@
     ],
     "3m": [
       {
-        "id": "sarimax",
-        "name": "SARIMAX",
+        "id": "arima",
+        "name": "ARIMA",
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3537,
-          "rmse": 0.4809,
-          "smape": 112.64,
+          "mae": 0.3731,
+          "rmse": 0.5098,
+          "smape": 110.96,
           "n_test": 24
         },
-        "point_forecast": 0.362
+        "point_forecast": 0.2706
       },
       {
         "id": "ensemble",
@@ -1473,43 +1473,17 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3594,
-          "rmse": 0.5122,
-          "smape": 114.5,
+          "mae": 0.3875,
+          "rmse": 0.5468,
+          "smape": 120.57,
           "n_test": 24
         },
-        "point_forecast": 0.3235,
+        "point_forecast": 0.1267,
         "weights": {
-          "arima": 0.3327,
-          "sarimax": 0.3512,
-          "prophet": 0.3161
+          "arima": 0.373,
+          "sarimax": 0.272,
+          "prophet": 0.355
         }
-      },
-      {
-        "id": "arima",
-        "name": "ARIMA",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.3735,
-          "rmse": 0.5099,
-          "smape": 111.1,
-          "n_test": 24
-        },
-        "point_forecast": 0.2528
-      },
-      {
-        "id": "prophet",
-        "name": "Prophet",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.393,
-          "rmse": 0.5942,
-          "smape": 115.63,
-          "n_test": 24
-        },
-        "point_forecast": 0.3551
       },
       {
         "id": "bilstm",
@@ -1517,12 +1491,25 @@
         "status": "ok",
         "metric_source": "chronological_holdout",
         "metrics": {
-          "mae": 0.4412,
-          "rmse": 0.5447,
-          "smape": 117.9,
+          "mae": 0.3912,
+          "rmse": 0.527,
+          "smape": 142.04,
           "n_test": 24
         },
-        "point_forecast": 0.6138
+        "point_forecast": 0.0937
+      },
+      {
+        "id": "prophet",
+        "name": "Prophet",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.392,
+          "rmse": 0.5926,
+          "smape": 116.44,
+          "n_test": 24
+        },
+        "point_forecast": -0.2046
       },
       {
         "id": "naive",
@@ -1538,17 +1525,30 @@
         "point_forecast": 0.28
       },
       {
+        "id": "sarimax",
+        "name": "SARIMAX",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.5117,
+          "rmse": 0.6925,
+          "smape": 131.37,
+          "n_test": 24
+        },
+        "point_forecast": 0.3619
+      },
+      {
         "id": "lstm",
         "name": "LSTM",
         "status": "ok",
         "metric_source": "chronological_holdout",
         "metrics": {
-          "mae": 0.6324,
-          "rmse": 0.7167,
-          "smape": 127.66,
+          "mae": 0.7686,
+          "rmse": 0.8668,
+          "smape": 132.17,
           "n_test": 24
         },
-        "point_forecast": 1.18
+        "point_forecast": 0.9174
       },
       {
         "id": "garch",
@@ -1560,61 +1560,17 @@
     ],
     "6m": [
       {
-        "id": "lstm",
-        "name": "LSTM",
-        "status": "ok",
-        "metric_source": "chronological_holdout",
-        "metrics": {
-          "mae": 0.3569,
-          "rmse": 0.4943,
-          "smape": 116.21,
-          "n_test": 24
-        },
-        "point_forecast": 0.4484
-      },
-      {
-        "id": "sarimax",
-        "name": "SARIMAX",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.3604,
-          "rmse": 0.4838,
-          "smape": 113.17,
-          "n_test": 24
-        },
-        "point_forecast": 0.4052
-      },
-      {
-        "id": "ensemble",
-        "name": "Ensemble",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.3612,
-          "rmse": 0.5132,
-          "smape": 114.07,
-          "n_test": 24
-        },
-        "point_forecast": 0.3526,
-        "weights": {
-          "arima": 0.3318,
-          "sarimax": 0.3452,
-          "prophet": 0.323
-        }
-      },
-      {
         "id": "arima",
         "name": "ARIMA",
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3749,
-          "rmse": 0.5122,
-          "smape": 110.01,
+          "mae": 0.3744,
+          "rmse": 0.5121,
+          "smape": 109.88,
           "n_test": 24
         },
-        "point_forecast": 0.3088
+        "point_forecast": 0.3117
       },
       {
         "id": "prophet",
@@ -1622,12 +1578,12 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.385,
-          "rmse": 0.5937,
-          "smape": 107.21,
+          "mae": 0.3868,
+          "rmse": 0.5971,
+          "smape": 107.91,
           "n_test": 24
         },
-        "point_forecast": 0.3414
+        "point_forecast": -0.5484
       },
       {
         "id": "bilstm",
@@ -1635,12 +1591,43 @@
         "status": "ok",
         "metric_source": "chronological_holdout",
         "metrics": {
-          "mae": 0.4712,
-          "rmse": 0.6231,
-          "smape": 167.27,
+          "mae": 0.3884,
+          "rmse": 0.5265,
+          "smape": 125.44,
           "n_test": 24
         },
-        "point_forecast": -0.1792
+        "point_forecast": 0.0788
+      },
+      {
+        "id": "ensemble",
+        "name": "Ensemble",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.412,
+          "rmse": 0.5471,
+          "smape": 129.79,
+          "n_test": 24
+        },
+        "point_forecast": 0.0154,
+        "weights": {
+          "arima": 0.3833,
+          "sarimax": 0.2455,
+          "prophet": 0.3711
+        }
+      },
+      {
+        "id": "lstm",
+        "name": "LSTM",
+        "status": "ok",
+        "metric_source": "chronological_holdout",
+        "metrics": {
+          "mae": 0.4872,
+          "rmse": 0.5796,
+          "smape": 123.2,
+          "n_test": 24
+        },
+        "point_forecast": 0.7227
       },
       {
         "id": "naive",
@@ -1656,6 +1643,19 @@
         "point_forecast": 0.28
       },
       {
+        "id": "sarimax",
+        "name": "SARIMAX",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.5846,
+          "rmse": 0.7111,
+          "smape": 157.17,
+          "n_test": 24
+        },
+        "point_forecast": 0.4051
+      },
+      {
         "id": "garch",
         "name": "GARCH",
         "status": "skipped",
@@ -1665,48 +1665,35 @@
     ],
     "12m": [
       {
-        "id": "lstm",
-        "name": "LSTM",
-        "status": "ok",
-        "metric_source": "chronological_holdout",
-        "metrics": {
-          "mae": 0.3514,
-          "rmse": 0.4921,
-          "smape": 143.8,
-          "n_test": 24
-        },
-        "point_forecast": 0.1656
-      },
-      {
-        "id": "sarimax",
-        "name": "SARIMAX",
-        "status": "ok",
-        "metric_source": "walk_forward",
-        "metrics": {
-          "mae": 0.3605,
-          "rmse": 0.4862,
-          "smape": 112.61,
-          "n_test": 24
-        },
-        "point_forecast": 0.4039
-      },
-      {
         "id": "ensemble",
         "name": "Ensemble",
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3645,
-          "rmse": 0.5148,
-          "smape": 112.78,
+          "mae": 0.3764,
+          "rmse": 0.5172,
+          "smape": 123.16,
           "n_test": 24
         },
-        "point_forecast": 0.3362,
+        "point_forecast": -0.0425,
         "weights": {
-          "arima": 0.3332,
-          "sarimax": 0.3536,
-          "prophet": 0.3133
+          "arima": 0.3649,
+          "sarimax": 0.2908,
+          "prophet": 0.3443
         }
+      },
+      {
+        "id": "lstm",
+        "name": "LSTM",
+        "status": "ok",
+        "metric_source": "chronological_holdout",
+        "metrics": {
+          "mae": 0.3792,
+          "rmse": 0.514,
+          "smape": 112.16,
+          "n_test": 24
+        },
+        "point_forecast": 0.1723
       },
       {
         "id": "arima",
@@ -1714,12 +1701,12 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.3826,
-          "rmse": 0.5155,
-          "smape": 109.4,
+          "mae": 0.3828,
+          "rmse": 0.5151,
+          "smape": 109.44,
           "n_test": 24
         },
-        "point_forecast": 0.3069
+        "point_forecast": 0.3141
       },
       {
         "id": "bilstm",
@@ -1727,12 +1714,12 @@
         "status": "ok",
         "metric_source": "chronological_holdout",
         "metrics": {
-          "mae": 0.4023,
-          "rmse": 0.5342,
-          "smape": 172.08,
+          "mae": 0.4002,
+          "rmse": 0.5189,
+          "smape": 112.9,
           "n_test": 24
         },
-        "point_forecast": -0.0361
+        "point_forecast": 0.5323
       },
       {
         "id": "prophet",
@@ -1740,12 +1727,12 @@
         "status": "ok",
         "metric_source": "walk_forward",
         "metrics": {
-          "mae": 0.407,
-          "rmse": 0.5978,
-          "smape": 127.28,
+          "mae": 0.4057,
+          "rmse": 0.5989,
+          "smape": 125.67,
           "n_test": 24
         },
-        "point_forecast": 0.291
+        "point_forecast": -0.7974
       },
       {
         "id": "naive",
@@ -1759,6 +1746,19 @@
           "n_test": 24
         },
         "point_forecast": 0.28
+      },
+      {
+        "id": "sarimax",
+        "name": "SARIMAX",
+        "status": "ok",
+        "metric_source": "walk_forward",
+        "metrics": {
+          "mae": 0.4804,
+          "rmse": 0.6186,
+          "smape": 135.63,
+          "n_test": 24
+        },
+        "point_forecast": 0.4038
       },
       {
         "id": "garch",
