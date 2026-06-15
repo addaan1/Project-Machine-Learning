@@ -415,18 +415,18 @@
                 <div class="kpi-icon" style="background: rgba(38, 166, 154, 0.12); color: var(--positive);"><i class="fas fa-shield-heart"></i></div>
                 <span class="kpi-tag">Model</span>
             </div>
-            <div class="kpi-label">Skor R^2 model daya beli</div>
+            <div class="kpi-label">R^2 uji model daya beli riil</div>
             <div class="kpi-value" style="color: var(--positive);">{{ ridge_test_r2|floatformat:3 }}</div>
-            <div class="kpi-sub">Menunjukkan seberapa besar variasi data uji yang bisa dijelaskan model. Semakin dekat ke 1, semakin baik.</div>
+            <div class="kpi-sub">Koefisien determinasi out-of-sample untuk estimasi {{ ridge_target_label|lower }}. MAE uji saat ini sekitar Rp {{ ridge_test_mae|floatformat:0 }}.</div>
         </article>
         <article class="dash-card">
             <div class="kpi-top">
                 <div class="kpi-icon" style="background: rgba(0, 188, 212, 0.12); color: var(--accent-info);"><i class="fas fa-wallet"></i></div>
                 <span class="kpi-tag">Household</span>
             </div>
-            <div class="kpi-label">Estimasi daya beli rata-rata</div>
+            <div class="kpi-label">Estimasi daya beli riil rata-rata</div>
             <div class="kpi-value" style="color: var(--text-primary);">Rp {{ rata_pengeluaran }}</div>
-            <div class="kpi-sub">Gambaran kasar pengeluaran per kapita bulanan dari baseline nasional terbaru.</div>
+            <div class="kpi-sub">Gambaran pengeluaran riil per kapita bulanan dari baseline nasional terbaru setelah penyesuaian inflasi.</div>
         </article>
         <article class="dash-card">
             <div class="kpi-top">

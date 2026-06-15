@@ -8,8 +8,17 @@ import torch.nn as nn
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
-from predictions.daya_beli_model import prepare_daya_beli_dataframe
-from predictions.inflation_forecast import load_saved_forecast_payload
+from predictions.daya_beli_model import (
+    NOMINAL_TARGET_COLUMN,
+    TARGET_COLUMN,
+    TARGET_LABEL,
+    prepare_daya_beli_dataframe,
+)
+from predictions.inflation_forecast import (
+    SARIMAX_REGRESSOR_SHORTLIST,
+    load_saved_forecast_payload,
+    load_saved_sarimax_feature_audit,
+)
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
@@ -37,6 +46,30 @@ RATA_PENGELUARAN = 1450000
 RIDGE_SIMULATION_DEFAULTS = None
 PROVINCE_SIMULATION_BASELINES = None
 INFLATION_FORECAST_PAYLOAD = None
+SARIMAX_FEATURE_AUDIT = None
+
+SARIMAX_FEATURE_REASON_MAP = {
+    "USD_IDR": {
+        "label": "USD/IDR",
+        "reason": "Menangkap pass-through kurs terhadap harga impor, bahan baku, dan biaya produksi.",
+    },
+    "Brent_USD": {
+        "label": "Brent Oil",
+        "reason": "Merepresentasikan tekanan biaya energi dan logistik yang dapat merambat ke harga domestik.",
+    },
+    "BI_Rate": {
+        "label": "BI Rate",
+        "reason": "Mewakili kanal kebijakan moneter dan respons suku bunga terhadap tekanan inflasi.",
+    },
+    "DXY": {
+        "label": "US Dollar Index",
+        "reason": "Memberi konteks kekuatan dolar global, terpisah dari pergerakan rupiah yang spesifik ke Indonesia.",
+    },
+    "FAO_FPI": {
+        "label": "FAO Food Price Index",
+        "reason": "Mewakili tekanan harga pangan global, yang penting untuk struktur inflasi Indonesia.",
+    },
+}
 
 
 def _safe_float(value, fallback=0.0):
@@ -54,6 +87,123 @@ def _json_no_store(payload, status=200):
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
+
+
+def _get_feature_note(feature_name):
+    return {
+        "feature": feature_name,
+        "label": (SARIMAX_FEATURE_REASON_MAP.get(feature_name) or {}).get("label", feature_name),
+        "reason": (SARIMAX_FEATURE_REASON_MAP.get(feature_name) or {}).get(
+            "reason",
+            "Fitur ini ikut dipakai oleh artefak aktif dan tetap diaudit kontribusinya secara out-of-sample.",
+        ),
+    }
+
+
+def _get_active_sarimax_feature_keys():
+    payload = _get_sarimax_feature_audit_payload() or {}
+    horizons = (payload.get("horizons") or {}).values()
+    discovered = []
+    for horizon_payload in horizons:
+        for feature in horizon_payload.get("base_regressors", []):
+            if feature not in discovered:
+                discovered.append(feature)
+    return discovered or list(SARIMAX_REGRESSOR_SHORTLIST)
+
+
+def _get_sarimax_feature_notes():
+    return [_get_feature_note(feature_name) for feature_name in _get_active_sarimax_feature_keys()]
+
+
+def _get_model_family_notes():
+    active_sarimax_labels = [item["label"] for item in _get_sarimax_feature_notes()]
+    sarimax_inputs = ", ".join(active_sarimax_labels) if active_sarimax_labels else "regressor makroekonomi aktif"
+
+    return [
+        {
+            "name": "ARIMA",
+            "family": "Statistical time-series",
+            "inputs": "Hanya seri target Inflasi_MoM historis.",
+            "when_used": "Menjadi baseline kuat saat pola utama cukup tertangkap dari histori inflasi itu sendiri.",
+            "strength": "Sederhana, mudah diaudit, dan sering kompetitif bila sinyal exogenous tambahan tidak terlalu kuat.",
+        },
+        {
+            "name": "SARIMAX",
+            "family": "Econometric time-series with exogenous regressors",
+            "inputs": f"Seri target Inflasi_MoM ditambah regressor aktif pada artefak saat ini: {sarimax_inputs}.",
+            "when_used": "Dipakai saat tekanan inflasi diduga juga dipengaruhi shock kurs, energi, pangan global, dan kebijakan moneter.",
+            "strength": "Menjaga interpretabilitas sambil tetap menangkap pengaruh variabel eksternal yang relevan.",
+        },
+        {
+            "name": "LSTM / Bi-LSTM",
+            "family": "Sequence deep learning",
+            "inputs": "Riwayat beberapa langkah waktu dengan feature space yang lebih luas dibanding model statistik.",
+            "when_used": "Berguna saat pola non-linear dan interaksi antarfitur waktu lebih kompleks daripada yang mudah ditangkap model klasik.",
+            "strength": "Lebih fleksibel untuk pola non-linear, tetapi validasinya harus ketat karena lebih mudah overfit.",
+        },
+        {
+            "name": "Prophet",
+            "family": "Additive trend-seasonality model with regressors",
+            "inputs": "Tanggal, seri target, dan regressor tambahan yang sama dengan shortlist exogenous aktif.",
+            "when_used": "Cocok untuk baseline yang eksplisit memisahkan tren, musiman, dan efek regressor.",
+            "strength": "Cepat dibaca, relatif stabil, dan berguna sebagai pembanding yang transparan.",
+        },
+    ]
+
+
+def _get_sarimax_feature_audit_payload():
+    global SARIMAX_FEATURE_AUDIT
+    if SARIMAX_FEATURE_AUDIT is None:
+        project_root = os.path.dirname(settings.BASE_DIR)
+        SARIMAX_FEATURE_AUDIT = load_saved_sarimax_feature_audit(project_root)
+    return SARIMAX_FEATURE_AUDIT
+
+
+def _build_sarimax_feature_audit_context():
+    payload = _get_sarimax_feature_audit_payload()
+    notes = _get_sarimax_feature_notes()
+    note_lookup = {item["feature"]: item for item in notes}
+
+    if not payload:
+        return {
+            "available": False,
+            "notes": notes,
+            "message": "Artefak audit fitur SARIMAX belum tersedia. Jalankan train_inflation_multihorizon.py untuk menghasilkan hasil ablation out-of-sample terbaru.",
+        }
+
+    horizons = []
+    for horizon_key, horizon_payload in (payload.get("horizons") or {}).items():
+        rows = []
+        for row in horizon_payload.get("drop_one_tests", []):
+            note = note_lookup.get(row.get("feature"), {})
+            rows.append(
+                {
+                    "feature": row.get("feature"),
+                    "label": note.get("label", row.get("feature")),
+                    "reason": note.get("reason", ""),
+                    "status": row.get("status", "skipped"),
+                    "dropped_mae": ((row.get("dropped_model_metrics") or {}).get("mae")),
+                    "delta_mae": row.get("delta_mae"),
+                    "interpretation": row.get("interpretation") or row.get("reason") or "Audit belum tersedia.",
+                }
+            )
+        horizons.append(
+            {
+                "key": horizon_key,
+                "label": horizon_payload.get("label", horizon_key),
+                "base_regressors": horizon_payload.get("base_regressors", []),
+                "base_metrics": horizon_payload.get("base_metrics", {}),
+                "rows": rows,
+            }
+        )
+
+    return {
+        "available": True,
+        "generated_at": payload.get("generated_at"),
+        "methodology": payload.get("methodology", {}),
+        "notes": notes,
+        "horizons": horizons,
+    }
 
 
 def _pct_change(current, previous, fallback=0.0):
@@ -86,7 +236,7 @@ def _build_ridge_simulation_defaults(project_root):
         'GDP_PerCapita_PPP': float(numeric_defaults.get('GDP_PerCapita_PPP', 13800.0)),
         'Pct_Unemployment_WB': float(numeric_defaults.get('Pct_Unemployment_WB', 3.4)),
         'Poverty_Headcount_Pct': float(numeric_defaults.get('Poverty_Headcount_Pct', 9.4)),
-        'RATA_PENGELUARAN': float(numeric_defaults.get('Total_Pengeluaran', 1450000.0)),
+        'RATA_PENGELUARAN': float(numeric_defaults.get(TARGET_COLUMN, 1450000.0)),
         'numeric_defaults': numeric_defaults,
     }
 
@@ -109,7 +259,8 @@ def _build_province_simulation_baselines(project_root):
         row_dict = row.to_dict()
         baselines[province] = {
             'baseline_year': int(_safe_float(row_dict.get('Tahun'), 0)),
-            'baseline_pengeluaran': _safe_float(row_dict.get('Total_Pengeluaran'), 1450000.0),
+            'baseline_pengeluaran': _safe_float(row_dict.get(TARGET_COLUMN), 1450000.0),
+            'baseline_pengeluaran_nominal': _safe_float(row_dict.get(NOMINAL_TARGET_COLUMN), 1450000.0),
             'fields': row_dict,
         }
     return baselines
@@ -144,12 +295,16 @@ def _build_simulation_input(province, overrides=None):
     prev_real_ump = _safe_float(fields.get('Prev_Real_UMP'), fields.get('Real_UMP', real_ump))
     prev_pdrb = _safe_float(fields.get('Prev_PDRB_HargaKonstan'), pdrb_value)
     prev_tpt = _safe_float(fields.get('Prev_TPT'), tpt_value)
+    baseline_year = int(_safe_float(fields.get('Tahun'), 0))
 
     feature_row = {
         'Provinsi': province,
+        'Year_Index': _safe_float(fields.get('Year_Index'), baseline_year),
         'TPT': tpt_value,
+        'TPAK': _safe_float(fields.get('TPAK'), 68.0),
         'PDRB_HargaKonstan': pdrb_value,
         'Inflasi_Rata_Tahunan': inflasi_pct,
+        'Inflation_Deflator': denominator,
         'Gini_Rasio': _safe_float(fields.get('Gini_Rasio'), 0.30),
         'IPM': _safe_float(fields.get('IPM'), 72.4),
         'Garis_Kemiskinan': _safe_float(fields.get('Garis_Kemiskinan'), 609000.0),
@@ -173,6 +328,7 @@ def _build_simulation_input(province, overrides=None):
         'Inflasi_x_TPT': inflasi_pct * tpt_value,
         'Log_PDRB': float(np.log1p(max(pdrb_value, 0.0))),
         'Log_UMP': float(np.log1p(max(real_ump, 0.0))),
+        'Prev_Total_Pengeluaran_Riil': _safe_float(fields.get('Prev_Total_Pengeluaran_Riil'), baseline['baseline_pengeluaran']),
     }
 
     if RIDGE_MODEL_BUNDLE is not None and 'num_features' in RIDGE_MODEL_BUNDLE:
@@ -393,6 +549,8 @@ def landing_page(request):
         'forecast_generated_at': (forecast_payload or {}).get('generated_at'),
         'rata_pengeluaran': "{:,.0f}".format(rata_pengeluaran).replace(',', '.'),
         'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
+        'ridge_test_mae': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_mae'), 0.0), 0),
+        'ridge_target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
         'province_count': len(_get_province_simulation_baselines()),
         'chart_labels': json.dumps(chart_labels),
         'ump_data': json.dumps(ump_data),
@@ -431,6 +589,7 @@ def daya_beli_page(request):
         province_defaults[province] = {
             'year': baseline['baseline_year'],
             'baseline_pengeluaran': round(_safe_float(baseline['baseline_pengeluaran']), 2),
+            'baseline_pengeluaran_nominal': round(_safe_float(baseline['baseline_pengeluaran_nominal']), 2),
             'inflasi': round(_safe_float(fields.get('Inflasi_Rata_Tahunan')), 2),
             'ump': round(_safe_float(fields.get('UMP')), 2),
             'tpt': round(_safe_float(fields.get('TPT')), 3),
@@ -440,6 +599,9 @@ def daya_beli_page(request):
         'provinces': province_names,
         'default_province': default_province,
         'province_defaults_json': json.dumps(province_defaults),
+        'ridge_target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
+        'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
+        'ridge_test_mae': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_mae'), 0.0), 0),
     }
     return render(request, 'predictions/daya_beli.html', context)
 def simulate_daya_beli(request):
@@ -501,8 +663,11 @@ def simulate_daya_beli(request):
             'province': provinsi,
             'baseline_year': int(baseline['baseline_year']),
             'baseline_pengeluaran': round(baseline_pengeluaran, 2),
+            'baseline_pengeluaran_nominal': round(_safe_float(baseline['baseline_pengeluaran_nominal']), 2),
             'inputs_used': inputs_used,
             'status_label': status_label,
+            'target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
+            'target_type': (RIDGE_MODEL_BUNDLE or {}).get('target_type', 'real'),
         })
     except KeyError:
         return JsonResponse({'error': 'Provinsi tidak ditemukan'}, status=404)
@@ -526,13 +691,22 @@ def home_page(request):
         'public_horizon_label': public_horizon.get('label', '1 Bulan'),
         'forecast_generated_at': (forecast_payload or {}).get('generated_at'),
         'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
+        'ridge_test_mae': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_mae'), 0.0), 0),
+        'ridge_target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
         'province_count': len(_get_province_simulation_baselines()),
     }
     return render(request, 'predictions/home.html', context)
 
 
 def guide_page(request):
-    return render(request, 'predictions/guide.html')
+    return render(
+        request,
+        'predictions/guide.html',
+        {
+            'sarimax_feature_audit': _build_sarimax_feature_audit_context(),
+            'model_family_notes': _get_model_family_notes(),
+        },
+    )
 
 
 # --- Dataset Explorer ---
@@ -683,7 +857,7 @@ def api_province_list(request):
 def api_province_data(request):
     """Return data for selected provinces and metric."""
     provinces = request.GET.getlist('provinsi')
-    metric = request.GET.get('metric', 'Total_Pengeluaran')
+    metric = request.GET.get('metric', TARGET_COLUMN)
     project_root = os.path.dirname(settings.BASE_DIR)
     path = os.path.join(project_root, 'datasets', 'processed', 'clean_daya_beli.csv')
     
@@ -691,12 +865,12 @@ def api_province_data(request):
         return JsonResponse({'error': 'Data not found'}, status=404)
     
     try:
-        df = pd.read_csv(path)
+        df = prepare_daya_beli_dataframe(pd.read_csv(path))
         if 'Provinsi' not in df.columns or 'Tahun' not in df.columns:
             return JsonResponse({'error': 'Required columns missing'}, status=500)
         
         if metric not in df.columns:
-            metric = 'Total_Pengeluaran'
+            metric = TARGET_COLUMN
         
         # Filter by provinces if specified
         if provinces:
@@ -713,7 +887,8 @@ def api_province_data(request):
         
         # Metric info
         metric_info = {
-            'Total_Pengeluaran': {'label': 'Daya Beli (Total Pengeluaran)', 'unit': 'Rp', 'format': 'currency'},
+            TARGET_COLUMN: {'label': 'Daya Beli Riil', 'unit': 'Rp', 'format': 'currency'},
+            NOMINAL_TARGET_COLUMN: {'label': 'Pengeluaran Nominal', 'unit': 'Rp', 'format': 'currency'},
             'UMP': {'label': 'Upah Minimum Provinsi', 'unit': 'Rp', 'format': 'currency'},
             'PDRB_HargaKonstan': {'label': 'PDRB Per Kapita', 'unit': 'Rp', 'format': 'currency'},
             'TPT': {'label': 'Tingkat Pengangguran Terbuka', 'unit': '%', 'format': 'percent'},
@@ -776,11 +951,11 @@ def api_all_metrics_latest(request):
     if not os.path.exists(path):
         return JsonResponse({'error': 'Data not found'}, status=404)
     try:
-        df = pd.read_csv(path)
+        df = prepare_daya_beli_dataframe(pd.read_csv(path))
         latest_year = df['Tahun'].max()
         latest = df[df['Tahun'] == latest_year]
         
-        metrics = ['Total_Pengeluaran', 'UMP', 'PDRB_HargaKonstan', 'TPT', 'IPM', 'Gini_Rasio', 
+        metrics = [TARGET_COLUMN, 'UMP', 'PDRB_HargaKonstan', 'TPT', 'IPM', 'Gini_Rasio', 
                    'Pct_Penduduk_Miskin', 'Inflasi_Rata_Tahunan']
         available = [m for m in metrics if m in latest.columns]
         

@@ -65,7 +65,7 @@ class HomePageUsdIdrTests(TestCase):
         self.assertContains(response, 'id="home-usd-value"')
         self.assertContains(response, 'id="home-usd-change"')
         self.assertContains(response, 'id="home-usd-date"')
-        self.assertContains(response, "Skor R^2 model daya beli")
+        self.assertContains(response, "R^2 uji model daya beli riil")
         self.assertNotContains(response, "Akurasi Model")
         self.assertNotIn(">0.55%</div>", html)
         self.assertIn("fetch('/api/usd-idr/', {", html)
@@ -157,6 +157,7 @@ class DayaBeliSimulationTests(TestCase):
         self.assertContains(response, "Basic")
         self.assertContains(response, "Advanced")
         self.assertContains(response, "Provinsi")
+        self.assertContains(response, "pengeluaran riil per kapita per bulan")
         self.assertNotIn("baseValue", html)
         self.assertNotIn("slopePerPercent", html)
 
@@ -172,6 +173,11 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "MoM")
         self.assertContains(response, "YoY")
         self.assertContains(response, "Y-to-D")
+        self.assertContains(response, "Keluarga model inflasi yang dipakai")
+        self.assertContains(response, "ARIMA")
+        self.assertContains(response, "LSTM / Bi-LSTM")
+        self.assertContains(response, "Fitur inti SARIMAX untuk model inflasi")
+        self.assertContains(response, "Audit kontribusi fitur SARIMAX")
 
     def test_dashboard_shows_orientation_panel_and_human_labels(self):
         response = self.client.get(reverse("landing"))
@@ -182,7 +188,7 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "Perubahan harga bulan ini")
         self.assertContains(response, "Perbandingan dengan bulan yang sama tahun lalu")
         self.assertContains(response, "Akumulasi sejak Januari")
-        self.assertContains(response, "Skor R^2 model daya beli")
+        self.assertContains(response, "R^2 uji model daya beli riil")
         self.assertNotContains(response, "Akurasi model daya beli")
         self.assertContains(response, "Model utama")
         self.assertIn(reverse("guide"), html)
