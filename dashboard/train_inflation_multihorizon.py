@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import warnings
 from copy import deepcopy
 
@@ -14,6 +15,9 @@ from sklearn.preprocessing import MinMaxScaler
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
+# ----------------------------------------------------------------------
+#  Imports from the project package (paths are defined in predictions/ )
+# ----------------------------------------------------------------------
 from predictions.inflation_forecast import (
     CORE_EXOG_COLUMNS,
     FORECAST_HISTORY_WINDOW,
@@ -31,10 +35,17 @@ from predictions.inflation_forecast import (
     risk_note_for_horizon,
 )
 
-
+# ----------------------------------------------------------------------
+#  Global configuration & reproducibility
+# ----------------------------------------------------------------------
 warnings.filterwarnings("ignore")
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
+
+# Seed everything for reproducible results
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_PATH = os.path.join(PROJECT_ROOT, "datasets", "processed", "clean_inflasi_ts.csv")
@@ -49,9 +60,14 @@ LSTM_PATIENCE = 8
 LSTM_HIDDEN = 48
 LSTM_LR = 0.001
 INTERVAL_ALPHA = (1.0 - FORECAST_INTERVAL_LEVEL) / 2.0
-PROPHET_REGRESSOR_CANDIDATES = [c for c in CORE_EXOG_COLUMNS if c in set(SARIMAX_REGRESSOR_SHORTLIST)]
+PROPHET_REGRESSOR_CANDIDATES = [
+    c for c in CORE_EXOG_COLUMNS if c in set(SARIMAX_REGRESSOR_SHORTLIST)
+]
 
 
+# ----------------------------------------------------------------------
+#  Helper utilities
+# ----------------------------------------------------------------------
 def smape(y_true, y_pred):
     true = np.asarray(y_true, dtype=float).reshape(-1)
     pred = np.asarray(y_pred, dtype=float).reshape(-1)
@@ -61,6 +77,7 @@ def smape(y_true, y_pred):
 
 
 def metric_block(y_true, y_pred):
+    """Calculate common regression metrics."""
     return {
         "mae": float(mean_absolute_error(y_true, y_pred)),
         "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
@@ -90,7 +107,47 @@ def get_feature_columns(df):
 def get_prophet_regressors(df):
     return [column for column in PROPHET_REGRESSOR_CANDIDATES if column in df.columns]
 
+def recursive_forecast(model, horizon, exog_future=None):
+    """
+    Forecast `horizon` bulan secara iteratif (recursive).
+    - `model`   : objek yang sudah ter‑fit (ARIMA, SARIMAX, Prophet, …)
+    - `horizon` : berapa langkah ke depan yang di‑minta
+    - `exog_future` : DataFrame eksogen yang sudah diprediksi untuk horizon
+    """
+    preds = []
+    # untuk Prophet, model tidak memiliki .forecast; gunakan .predict pada DataFrame ds
+    for step in range(1, horizon + 1):
+        # ---- ARIMA / SARIMAX ----
+        if hasattr(model, "forecast"):
+            # ambil exog untuk step ini bila ada
+            exog_step = None
+            if exog_future is not None:
+                exog_step = exog_future.iloc[[step - 1]]
+            # forecast satu langkah
+            forecast = model.forecast(steps=1, exog=exog_step) \
+                if exog_step is not None else model.forecast(steps=1)
+            pred = float(np.asarray(forecast).reshape(-1)[0])
+            preds.append(pred)
 
+        # ---- Prophet ----
+        else:  # model is Prophet
+            # Prophet memerlukan DataFrame dengan kolom ds (tanggal)
+            future_df = pd.DataFrame({
+                "ds": [model.make_future_dataframe(periods=step).ds.iloc[-1]]
+            })
+            # gabungkan eksogen jika disediakan
+            if exog_future is not None:
+                for col in exog_future.columns:
+                    future_df[col] = exog_future[col].iloc[step - 1]
+            forecast = model.predict(future_df)
+            pred = float(forecast["yhat"].iloc[-1])
+            preds.append(pred)
+
+    return np.array(preds)
+
+# ----------------------------------------------------------------------
+#  Baseline & classical models
+# ----------------------------------------------------------------------
 def evaluate_naive(df, horizon):
     usable = df.iloc[:-horizon].copy()
     test = usable.tail(FORECAST_TEST_WINDOW).copy()
@@ -143,7 +200,7 @@ def walkforward_arima(df, horizon):
             forecast = fitted.forecast(steps=horizon)
             pred = float(np.asarray(forecast).reshape(-1)[-1])
         except Exception:
-            pred = float(train_y.iloc[-1])
+            pred = recursive_forecast(model, horizon)[-1]
         predictions.append(pred)
         actuals.append(actual)
 
@@ -159,14 +216,20 @@ def walkforward_arima(df, horizon):
         "status": "ok",
         "backtest_predictions": [float(v) for v in predictions],
         "backtest_actuals": [float(v) for v in actuals],
-        "backtest_dates": [df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d") for origin in range(start, len(df) - horizon)],
+        "backtest_dates": [
+            df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d")
+            for origin in range(start, len(df) - horizon)
+        ],
     }
 
 
 def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", result_name=None):
     y = df["Inflasi_MoM"].reset_index(drop=True)
     regressors = [
-        column for column in (regressors if regressors is not None else get_prophet_regressors(df))
+        column
+        for column in (
+            regressors if regressors is not None else get_prophet_regressors(df)
+        )
         if column in df.columns
     ]
     exog = df[regressors].reset_index(drop=True) if regressors else None
@@ -177,7 +240,9 @@ def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", resul
     for origin in range(start, len(df) - horizon):
         train_y = y.iloc[: origin + 1]
         train_exog = exog.iloc[: origin + 1] if exog is not None else None
-        future_exog = exog.iloc[origin + 1 : origin + horizon + 1] if exog is not None else None
+        future_exog = (
+            exog.iloc[origin + 1 : origin + horizon + 1] if exog is not None else None
+        )
         actual = float(y.iloc[origin + horizon])
         try:
             model = SARIMAX(
@@ -190,14 +255,15 @@ def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", resul
                 enforce_invertibility=False,
             )
             fitted = model.fit(disp=False)
-            forecast = fitted.forecast(steps=horizon, exog=future_exog)
-            pred = float(np.asarray(forecast).reshape(-1)[-1])
+            pred = recursive_forecast(model, horizon, exog_future=future_exog)[-1]
         except Exception:
             pred = float(train_y.iloc[-1])
         predictions.append(pred)
         actuals.append(actual)
 
-    future_exog, _ = build_future_exog(df, horizon, regressors) if regressors else (None, None)
+    future_exog, _ = (
+        build_future_exog(df, horizon, regressors) if regressors else (None, None)
+    )
     full_model = SARIMAX(
         y,
         exog=exog,
@@ -207,7 +273,9 @@ def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", resul
         enforce_stationarity=False,
         enforce_invertibility=False,
     ).fit(disp=False)
-    future_point = float(np.asarray(full_model.forecast(steps=horizon, exog=future_exog)).reshape(-1)[-1])
+    future_point = float(
+        np.asarray(full_model.forecast(steps=horizon, exog=future_exog)).reshape(-1)[-1]
+    )
     return {
         "id": result_id,
         "name": result_name or professional_model_name("sarimax"),
@@ -219,7 +287,10 @@ def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", resul
         "regressors": regressors,
         "backtest_predictions": [float(v) for v in predictions],
         "backtest_actuals": [float(v) for v in actuals],
-        "backtest_dates": [df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d") for origin in range(start, len(df) - horizon)],
+        "backtest_dates": [
+            df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d")
+            for origin in range(start, len(df) - horizon)
+        ],
     }
 
 
@@ -252,7 +323,13 @@ def build_sarimax_feature_audit(df, horizon, base_result):
                         "n_test": int(reduced_result["metrics"]["n_test"]),
                     },
                     "delta_mae": round(delta_mae, 4),
-                    "delta_rmse": round(float(reduced_result["metrics"]["rmse"] - base_result["metrics"]["rmse"]), 4),
+                    "delta_rmse": round(
+                        float(
+                            reduced_result["metrics"]["rmse"]
+                            - base_result["metrics"]["rmse"]
+                        ),
+                        4,
+                    ),
                     "interpretation": (
                         "penghapusan fitur memperburuk error; fitur memberi kontribusi positif"
                         if delta_mae > 0.01
@@ -331,9 +408,7 @@ def walkforward_prophet(df, horizon):
 
     model, regressors = _fit_prophet(df.copy())
     future_exog, future_dates = build_future_exog(df, horizon, regressors)
-    future_frame = future_exog.copy()
-    future_frame.insert(0, "ds", future_dates)
-    future_point = float(model.predict(future_frame)["yhat"].iloc[-1])
+    future_point = recursive_forecast(model, horizon, exog_future=future_exog)[-1]
     return {
         "id": "prophet",
         "name": professional_model_name("prophet"),
@@ -344,10 +419,16 @@ def walkforward_prophet(df, horizon):
         "status": "ok",
         "backtest_predictions": [float(v) for v in predictions],
         "backtest_actuals": [float(v) for v in actuals],
-        "backtest_dates": [df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d") for origin in range(start, len(df) - horizon)],
+        "backtest_dates": [
+            df["Tanggal"].iloc[origin + horizon].strftime("%Y-%m-%d")
+            for origin in range(start, len(df) - horizon)
+        ],
     }
 
 
+# ----------------------------------------------------------------------
+#  Deep‑learning model (LSTM / Bi‑LSTM)
+# ----------------------------------------------------------------------
 class SequenceForecastModel(nn.Module):
     def __init__(self, input_size, bidirectional=False):
         super().__init__()
@@ -368,42 +449,8 @@ class SequenceForecastModel(nn.Module):
         return self.fc(self.dropout(tail))
 
 
-def _build_sequence_supervised(df, horizon, feature_columns):
-    target = df["Inflasi_MoM"].shift(-horizon)
-    usable = df.copy()
-    usable["target"] = target
-    usable = usable.dropna(subset=["target"]).reset_index(drop=True)
-
-    feature_values = usable[feature_columns].values
-    target_values = usable["target"].values.reshape(-1, 1)
-    dates = usable["Tanggal"].tolist()
-
-    scaler_x = MinMaxScaler()
-    scaler_y = MinMaxScaler()
-    x_scaled = scaler_x.fit_transform(feature_values)
-    y_scaled = scaler_y.fit_transform(target_values)
-
-    sequences = []
-    targets = []
-    sequence_dates = []
-    for idx in range(SEQ_LENGTH - 1, len(usable)):
-        start = idx - SEQ_LENGTH + 1
-        sequences.append(x_scaled[start : idx + 1])
-        targets.append(y_scaled[idx])
-        sequence_dates.append(dates[idx])
-
-    return (
-        np.asarray(sequences, dtype=np.float32),
-        np.asarray(targets, dtype=np.float32),
-        sequence_dates,
-        scaler_x,
-        scaler_y,
-        x_scaled,
-    )
-
-
 def _train_sequence_model(X_train, y_train, X_val, y_val, bidirectional=False):
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = SequenceForecastModel(X_train.shape[2], bidirectional=bidirectional).to(device)
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LSTM_LR)
@@ -446,44 +493,109 @@ def _train_sequence_model(X_train, y_train, X_val, y_val, bidirectional=False):
 
 
 def evaluate_sequence_model(df, horizon, model_id):
+    """Train / evaluate LSTM or Bi‑LSTM on the inflation series.
+
+    This implementation avoids data leakage by fitting the scalers **only on the
+    training partition** before transforming the whole dataset.
+    """
     bidirectional = model_id == "bilstm"
     feature_columns = get_feature_columns(df)
-    (
-        X_seq,
-        y_seq,
-        sequence_dates,
-        scaler_x,
-        scaler_y,
-        x_scaled_all,
-    ) = _build_sequence_supervised(df, horizon, feature_columns)
 
-    if len(X_seq) <= FORECAST_TEST_WINDOW + 12:
-        raise RuntimeError("Sequence dataset terlalu kecil untuk evaluasi.")
+    # ------------------------------------------------------------------
+    #   1️⃣  Create target (shifted) and drop rows without a target
+    # ------------------------------------------------------------------
+    usable = df.copy()
+    usable["target"] = usable["Inflasi_MoM"].shift(-horizon)
+    usable = usable.dropna(subset=["target"]).reset_index(drop=True)
 
+    # ------------------------------------------------------------------
+    #   2️⃣  Partition indices (chronological hold‑out)
+    # ------------------------------------------------------------------
     test_size = FORECAST_TEST_WINDOW
     val_size = 12
-    train_end = len(X_seq) - test_size - val_size
-    val_end = len(X_seq) - test_size
+    total_len = len(usable)
+    train_end_idx = total_len - test_size - val_size
+    val_end_idx = total_len - test_size
 
-    X_train = X_seq[:train_end]
-    y_train = y_seq[:train_end]
-    X_val = X_seq[train_end:val_end]
-    y_val = y_seq[train_end:val_end]
-    X_test = X_seq[val_end:]
-    y_test = y_seq[val_end:]
+    # ------------------------------------------------------------------
+    #   3️⃣  Fit scalers **only on training data** (prevents leakage)
+    # ------------------------------------------------------------------
+    scaler_x = MinMaxScaler()
+    scaler_y = MinMaxScaler()
 
-    model = _train_sequence_model(X_train, y_train, X_val, y_val, bidirectional=bidirectional)
+    train_features = usable.loc[: train_end_idx - 1, feature_columns].values
+    train_targets = usable.loc[: train_end_idx - 1, "target"].values.reshape(-1, 1)
+
+    scaler_x.fit(train_features)
+    scaler_y.fit(train_targets)
+
+    # Transform the complete dataframe using the training‑fit scalers
+    x_scaled_all = scaler_x.transform(usable[feature_columns].values)
+    y_scaled_all = scaler_y.transform(usable["target"].values.reshape(-1, 1))
+
+    # ------------------------------------------------------------------
+    #   4️⃣  Build sliding windows (sequences) for the LSTM
+    # ------------------------------------------------------------------
+    sequences = []
+    targets = []
+    sequence_dates = []
+    dates = usable["Tanggal"].tolist()
+
+    for idx in range(SEQ_LENGTH - 1, len(usable)):
+        start = idx - SEQ_LENGTH + 1
+        sequences.append(x_scaled_all[start : idx + 1])
+        targets.append(y_scaled_all[idx])
+        sequence_dates.append(dates[idx])
+
+    X_seq = np.asarray(sequences, dtype=np.float32)
+    y_seq = np.asarray(targets, dtype=np.float32)
+
+    # ------------------------------------------------------------------
+    #   5️⃣  Slice into train / val / test after sequence creation
+    # ------------------------------------------------------------------
+    seq_train_end = train_end_idx - (SEQ_LENGTH - 1)
+    seq_val_end = val_end_idx - (SEQ_LENGTH - 1)
+
+    X_train = X_seq[:seq_train_end]
+    y_train = y_seq[:seq_train_end]
+    X_val = X_seq[seq_train_end:seq_val_end]
+    y_val = y_seq[seq_train_end:seq_val_end]
+    X_test = X_seq[seq_val_end:]
+    y_test = y_seq[seq_val_end:]
+
+    # ------------------------------------------------------------------
+    #   6️⃣  Train the model
+    # ------------------------------------------------------------------
+    model = _train_sequence_model(
+        X_train, y_train, X_val, y_val, bidirectional=bidirectional
+    )
     model.eval()
+
+    # ------------------------------------------------------------------
+    #   7️⃣  Predict on the test set
+    # ------------------------------------------------------------------
     with torch.no_grad():
-        test_pred_scaled = model(torch.tensor(X_test, dtype=torch.float32)).cpu().numpy()
+        test_pred_scaled = model(
+            torch.tensor(X_test, dtype=torch.float32)
+        ).cpu().numpy()
     test_pred = scaler_y.inverse_transform(test_pred_scaled).reshape(-1)
     y_true = scaler_y.inverse_transform(y_test).reshape(-1)
 
+    # ------------------------------------------------------------------
+    #   8️⃣  Forecast one step ahead using the most recent sequence
+    # ------------------------------------------------------------------
     last_sequence = x_scaled_all[-SEQ_LENGTH:]
     with torch.no_grad():
-        future_scaled = model(torch.tensor(np.array([last_sequence]), dtype=torch.float32)).cpu().numpy()
-    point_forecast = float(scaler_y.inverse_transform(future_scaled).reshape(-1)[0])
+        future_scaled = model(
+            torch.tensor(np.array([last_sequence]), dtype=torch.float32)
+        ).cpu().numpy()
+    point_forecast = float(
+        scaler_y.inverse_transform(future_scaled).reshape(-1)[0]
+    )
 
+    # ------------------------------------------------------------------
+    #   9️⃣  Return the result dictionary (same schema as other models)
+    # ------------------------------------------------------------------
     return {
         "id": model_id,
         "name": professional_model_name(model_id),
@@ -492,7 +604,12 @@ def evaluate_sequence_model(df, horizon, model_id):
         "point_forecast": point_forecast,
         "metric_source": "chronological_holdout",
         "status": "ok",
-        "backtest_dates": [dt.strftime("%Y-%m-%d") for dt in sequence_dates[val_end:]],
+        "backtest_dates": [
+            dt.strftime("%Y-%m-%d")
+            if isinstance(dt, pd.Timestamp)
+            else str(dt)
+            for dt in sequence_dates[seq_val_end:]
+        ],
     }
 
 
@@ -512,8 +629,7 @@ def build_ensemble_result(base_results):
         return None
 
     weights_raw = {
-        result["id"]: 1.0 / max(result["metrics"]["mae"], 1e-6)
-        for result in usable
+        result["id"]: 1.0 / max(result["metrics"]["mae"], 1e-6) for result in usable
     }
     weight_total = sum(weights_raw.values())
     weights = {key: value / weight_total for key, value in weights_raw.items()}
@@ -543,6 +659,8 @@ def build_ensemble_result(base_results):
         "backtest_actuals": actuals.tolist(),
         "backtest_dates": usable[0]["backtest_dates"],
     }
+
+
 def summarize_candidate(result):
     summary = {
         "id": result["id"],
@@ -593,7 +711,9 @@ def forecast_for_horizon(df, horizon):
     garch_candidate = maybe_garch_candidate()
 
     base_results = [naive_result, arima_result, sarimax_result, prophet_result]
-    ensemble_result = build_ensemble_result([arima_result, sarimax_result, prophet_result])
+    ensemble_result = build_ensemble_result(
+        [arima_result, sarimax_result, prophet_result]
+    )
     if ensemble_result is not None:
         base_results.append(ensemble_result)
 
@@ -604,7 +724,9 @@ def forecast_for_horizon(df, horizon):
 
     top_models = []
     for rank, result in enumerate(ranked_public, start=1):
-        ci_lower, ci_upper, interval_note = empirical_interval(result["point_forecast"], result["residuals"])
+        ci_lower, ci_upper, interval_note = empirical_interval(
+            result["point_forecast"], result["residuals"]
+        )
         top_models.append(
             {
                 "id": result["id"],
@@ -655,12 +777,22 @@ def forecast_for_horizon(df, horizon):
         "future_labels": [future_date],
         "top_models": top_models,
         "series": {
-            "history_labels": df["Tanggal"].tail(FORECAST_HISTORY_WINDOW).dt.strftime("%Y-%m").tolist(),
-            "history_actual": [round(float(v), 4) for v in df["Inflasi_MoM"].tail(FORECAST_HISTORY_WINDOW).tolist()],
+            "history_labels": df["Tanggal"]
+            .tail(FORECAST_HISTORY_WINDOW)
+            .dt.strftime("%Y-%m")
+            .tolist(),
+            "history_actual": [
+                round(float(v), 4)
+                for v in df["Inflasi_MoM"]
+                .tail(FORECAST_HISTORY_WINDOW)
+                .tolist()
+            ],
         },
         "risk_note": risk_note_for_horizon(horizon),
         "comparison": comparison,
-        "sarimax_feature_audit": build_sarimax_feature_audit(df, horizon, sarimax_result),
+        "sarimax_feature_audit": build_sarimax_feature_audit(
+            df, horizon, sarimax_result
+        ),
     }
 
 
@@ -679,7 +811,7 @@ def main():
         "methodology": {
             "selection_basis": "Shortlist awal ditentukan dari teori ekonomi, lalu diuji ulang dengan ablation drop-one out-of-sample pada SARIMAX.",
             "metric_primary": "MAE",
-            "note": "Delta MAE positif berarti menghapus fitur memperburuk performa, sehingga fitur tersebut membantu model."
+            "note": "Delta MAE positif berarti menghapus fitur memperburuk performa, sehingga fitur tersebut membantu model.",
         },
         "horizons": {},
     }
