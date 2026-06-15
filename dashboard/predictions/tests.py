@@ -7,7 +7,7 @@ from django.urls import reverse
 
 class UsdIdrApiTests(TestCase):
     @patch("urllib.request.urlopen")
-    def test_uses_latest_two_daily_rates_for_change(self, mock_urlopen):
+    def test_uses_month_start_rate_for_change(self, mock_urlopen):
         latest_payload = {
             "result": "success",
             "time_last_update_unix": 1781481600,
@@ -43,10 +43,11 @@ class UsdIdrApiTests(TestCase):
         self.assertEqual(api_response.status_code, 200)
         self.assertEqual(data["latest"], 17831.64)
         self.assertEqual(data["daily_date"], "2026-06-15")
-        self.assertEqual(data["previous_rate"], 17788.0)
-        self.assertEqual(data["previous_date"], "2026-06-12")
-        self.assertFalse(data["comparison_is_previous_calendar_day"])
-        self.assertEqual(data["change_pct"], 0.25)
+        self.assertEqual(data["previous_rate"], 17950.0)
+        self.assertEqual(data["previous_date"], "2026-06-10")
+        self.assertEqual(data["month_start_rate"], 17950.0)
+        self.assertEqual(data["month_start_date"], "2026-06-10")
+        self.assertEqual(data["change_pct"], -0.66)
         self.assertEqual(data["history"], [17950.0, 17910.0, 17788.0])
         self.assertEqual(data["data_type"], "daily")
         self.assertIn("no-store", api_response["Cache-Control"])
@@ -64,12 +65,12 @@ class HomePageUsdIdrTests(TestCase):
         self.assertContains(response, 'id="home-usd-value"')
         self.assertContains(response, 'id="home-usd-change"')
         self.assertContains(response, 'id="home-usd-date"')
-        self.assertContains(response, "Skor R² model daya beli")
+        self.assertContains(response, "Skor R^2 model daya beli")
         self.assertNotContains(response, "Akurasi Model")
         self.assertNotIn(">0.55%</div>", html)
         self.assertIn("fetch('/api/usd-idr/', {", html)
         self.assertIn("cache: 'no-store'", html)
-        self.assertContains(response, "Buka Panduan")
+        self.assertContains(response, "Referensi Pembacaan")
 
     def test_home_and_landing_use_same_primary_inflation_forecast(self):
         home_response = self.client.get(reverse("home"))
@@ -181,7 +182,7 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "Perubahan harga bulan ini")
         self.assertContains(response, "Perbandingan dengan bulan yang sama tahun lalu")
         self.assertContains(response, "Akumulasi sejak Januari")
-        self.assertContains(response, "Skor R² model daya beli")
+        self.assertContains(response, "Skor R^2 model daya beli")
         self.assertNotContains(response, "Akurasi model daya beli")
         self.assertContains(response, "Model utama")
         self.assertIn(reverse("guide"), html)

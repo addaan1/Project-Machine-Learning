@@ -678,7 +678,7 @@
                         <i class="fas fa-wave-square"></i> Lihat Forecasting
                     </a>
                     <a href="{% url 'guide' %}" class="btn-hero secondary">
-                        <i class="fas fa-book-open"></i> Panduan Awal
+                        <i class="fas fa-book-open"></i> Referensi Pembacaan
                     </a>
                 </div>
                 <div class="hero-note">
@@ -704,9 +704,9 @@
                     </div>
                     <div class="terminal-panels">
                         <div class="terminal-panel">
-                            <small>Skor model daya beli</small>
+                            <small>Skor R^2 model daya beli</small>
                             <strong>{{ ridge_test_r2|floatformat:3 }}</strong>
-                            <span>Skor R² data uji Ridge Regression, bukan persentase akurasi klasifikasi.</span>
+                            <span>Koefisien determinasi data uji Ridge Regression, bukan ukuran akurasi klasifikasi.</span>
                         </div>
                         <div class="terminal-panel">
                             <small>Provinsi tercakup</small>
@@ -735,9 +735,9 @@
                     <div class="stat-spark"><canvas id="spark-inflasi"></canvas></div>
                 </div>
                 <div class="stat-card" data-parallax="0.08">
-                    <div class="stat-label">Skor R² model daya beli</div>
+                    <div class="stat-label">Skor R^2 model daya beli</div>
                     <div class="stat-value" style="color: var(--positive);">{{ ridge_test_r2|floatformat:3 }}</div>
-                    <div class="stat-change up"><i class="fas fa-check-circle"></i> Variasi data uji yang dijelaskan model</div>
+                    <div class="stat-change up"><i class="fas fa-check-circle"></i> Proporsi variasi data uji yang dijelaskan model</div>
                     <div class="stat-spark"><canvas id="spark-r2"></canvas></div>
                 </div>
                 <div class="stat-card" data-parallax="0.11">
@@ -791,8 +791,8 @@
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-book-open"></i></div>
-                    <h3>Panduan Awal</h3>
-                    <p>Jalur singkat untuk memahami istilah utama dan cara membaca dashboard sebelum masuk ke analisis yang lebih dalam.</p>
+                    <h3>Referensi Pembacaan</h3>
+                    <p>Ringkasan istilah, konteks indikator, dan kerangka interpretasi sebelum masuk ke analisis yang lebih rinci.</p>
                 </div>
             </div>
         </div>
@@ -835,14 +835,14 @@
     <section class="section">
         <div class="footer-strip reveal">
             <div class="footer-copy">
-                <h3>Masuk ke dashboard saat butuh angka. Buka panduan saat butuh konteks.</h3>
+                <h3>Masuk ke dashboard untuk analisis utama. Buka referensi interpretasi untuk konteks metodologis.</h3>
                 <p>
-                    Halaman awal ini sengaja tetap ringkas dan profesional. Untuk istilah teknis ada halaman panduan,
+                    Halaman awal ini sengaja tetap ringkas dan profesional. Untuk istilah teknis tersedia halaman referensi,
                     sedangkan pekerjaan analitis penuh bisa langsung dilanjutkan di dashboard operasional.
                 </p>
             </div>
             <div class="footer-actions">
-                <a href="{% url 'guide' %}" class="btn-hero secondary">Buka Panduan</a>
+                <a href="{% url 'guide' %}" class="btn-hero secondary">Lihat Referensi</a>
                 <a href="{% url 'landing' %}" class="btn-hero primary">Buka Dashboard</a>
             </div>
         </div>
@@ -910,11 +910,9 @@
                 const direction = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
                 const sign = change > 0 ? '+' : change < 0 ? '-' : '';
                 const formattedRate = 'Rp ' + Math.round(rate).toLocaleString('id-ID');
-                const comparisonDate = data.previous_date
-                    ? data.comparison_is_previous_calendar_day
-                        ? 'vs ' + formatUsdDate(data.previous_date)
-                        : 'vs observasi harian terakhir (' + formatUsdDate(data.previous_date) + ')'
-                    : 'perubahan sebelumnya belum tersedia';
+                const comparisonDate = data.month_start_date
+                    ? 'vs awal bulan (' + formatUsdDate(data.month_start_date) + ')'
+                    : 'basis awal bulan belum tersedia';
 
                 document.getElementById('home-usd-value').textContent = formattedRate;
                 document.getElementById('home-usd-date').textContent = formatUsdDate(data.daily_date || data.monthly_date);
@@ -959,3 +957,4 @@
     </script>
 </body>
 </html>
+

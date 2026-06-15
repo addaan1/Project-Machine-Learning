@@ -415,7 +415,7 @@
                 <div class="kpi-icon" style="background: rgba(38, 166, 154, 0.12); color: var(--positive);"><i class="fas fa-shield-heart"></i></div>
                 <span class="kpi-tag">Model</span>
             </div>
-            <div class="kpi-label">Skor R² model daya beli</div>
+            <div class="kpi-label">Skor R^2 model daya beli</div>
             <div class="kpi-value" style="color: var(--positive);">{{ ridge_test_r2|floatformat:3 }}</div>
             <div class="kpi-sub">Menunjukkan seberapa besar variasi data uji yang bisa dijelaskan model. Semakin dekat ke 1, semakin baik.</div>
         </article>
@@ -457,7 +457,7 @@
             <div class="usd-head">
                 <div>
                     <h3>USD/IDR live exchange rate</h3>
-                    <p>Diambil dari endpoint harian yang sama dengan landing page publik supaya nilainya konsisten.</p>
+                    <p>Diambil dari endpoint harian aktif dengan pembanding month-to-date agar konsisten di seluruh antarmuka publik.</p>
                 </div>
                 <span class="kpi-tag">Live API</span>
             </div>
@@ -469,11 +469,11 @@
 
         <div class="quick-links">
             <h3>Jalur baca cepat</h3>
-            <p>Kalau user masih baru, tiga halaman ini biasanya paling membantu untuk memahami cerita besarnya.</p>
+            <p>Tiga modul ini merangkum istilah, forecast, dan simulasi yang paling sering dipakai saat membaca dashboard.</p>
             <div class="quick-grid">
                 <a class="quick-item" href="{% url 'guide' %}">
-                    <strong>Panduan</strong>
-                    <span>Mulai dari istilah dan cara membaca dashboard.</span>
+                    <strong>Referensi Pembacaan</strong>
+                    <span>Istilah inti, konteks indikator, dan kerangka interpretasi.</span>
                 </a>
                 <a class="quick-item" href="{% url 'forecasting' %}">
                     <strong>Forecasting</strong>
@@ -648,11 +648,9 @@
         const changeEl = document.getElementById('usdChange');
         const changePct = Number(data.change_pct || 0);
         const isUp = changePct > 0;
-        const comparisonText = data.previous_date
-            ? data.comparison_is_previous_calendar_day
-                ? `dibanding ${formatDisplayDate(data.previous_date)}`
-                : `vs observasi harian terakhir (${formatDisplayDate(data.previous_date)})`
-            : 'dibanding data pembanding terbaru';
+        const comparisonText = data.month_start_date
+            ? `sejak awal bulan (${formatDisplayDate(data.month_start_date)})`
+            : 'dengan basis awal bulan aktif';
         changeEl.textContent = `${isUp ? 'Naik' : changePct < 0 ? 'Turun' : 'Stabil'} ${Math.abs(changePct).toFixed(2)}% ${comparisonText}`;
         changeEl.style.background = isUp ? 'rgba(239, 83, 80, 0.12)' : changePct < 0 ? 'rgba(38, 166, 154, 0.12)' : 'rgba(41, 98, 255, 0.12)';
         changeEl.style.color = isUp ? '#EF5350' : changePct < 0 ? '#26A69A' : '#2962FF';
@@ -672,3 +670,4 @@
     });
 </script>
 {% endblock %}
+

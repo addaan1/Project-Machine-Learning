@@ -796,7 +796,7 @@ def api_all_metrics_latest(request):
 
 
 def api_usd_idr_latest(request):
-    """Return the latest USD/IDR rate and its previous daily observation."""
+    """Return the latest USD/IDR rate with month-to-date comparison data."""
     import urllib.request
     import json as json_lib
     from datetime import date, datetime, timedelta
@@ -804,11 +804,13 @@ def api_usd_idr_latest(request):
     project_root = os.path.dirname(settings.BASE_DIR)
     path = os.path.join(project_root, 'datasets', 'processed', 'clean_inflasi_ts.csv')
     
-    # Prefer the latest daily reference first, then enrich it with recent history.
+    # Prefer the latest daily reference first, then enrich it with current-month history.
     daily_rate = None
     daily_date = None
     previous_rate = None
     previous_date = None
+    month_start_rate = None
+    month_start_date = None
     daily_history = []
     source_label = None
 
@@ -829,7 +831,7 @@ def api_usd_idr_latest(request):
 
     try:
         end_date = date.today()
-        start_date = end_date - timedelta(days=14)
+        start_date = end_date.replace(day=1)
         url = (
             "https://api.frankfurter.dev/v1/"
             f"{start_date.isoformat()}..{end_date.isoformat()}"
@@ -847,19 +849,15 @@ def api_usd_idr_latest(request):
                 if rates.get('IDR') is not None
             )
             if observations:
-                daily_history = [round(float(rate), 2) for _, rate in observations[-10:]]
+                daily_history = [round(float(rate), 2) for _, rate in observations]
+                month_start_date, month_start_rate = observations[0]
+                month_start_rate = round(float(month_start_rate), 2)
                 if daily_rate is None:
                     daily_date, daily_rate = observations[-1]
                     daily_rate = round(float(daily_rate), 2)
                     source_label = 'Frankfurter (central bank reference rates)'
-                if daily_date is not None:
-                    prior_observations = [
-                        (observation_date, round(float(rate), 2))
-                        for observation_date, rate in observations
-                        if observation_date < daily_date
-                    ]
-                    if prior_observations:
-                        previous_date, previous_rate = prior_observations[-1]
+                previous_date = month_start_date
+                previous_rate = month_start_rate
     except Exception:
         pass
     
@@ -879,20 +877,11 @@ def api_usd_idr_latest(request):
     except Exception:
         pass
     
-    comparison_is_previous_calendar_day = False
-    if daily_date and previous_date:
-        try:
-            comparison_is_previous_calendar_day = (
-                datetime.fromisoformat(daily_date).date() - datetime.fromisoformat(previous_date).date()
-            ).days == 1
-        except ValueError:
-            comparison_is_previous_calendar_day = False
-
     # Use daily data when available, otherwise retain the existing monthly fallback.
     latest = daily_rate if daily_rate else (monthly_rate if monthly_rate else 18050)
     change_pct = 0
-    if daily_rate is not None and previous_rate:
-        change_pct = ((daily_rate - previous_rate) / previous_rate) * 100
+    if daily_rate is not None and month_start_rate:
+        change_pct = ((daily_rate - month_start_rate) / month_start_rate) * 100
     elif monthly_history and len(monthly_history) >= 2:
         prev = monthly_history[-2]
         if prev > 0:
@@ -906,7 +895,8 @@ def api_usd_idr_latest(request):
         'daily_date': daily_date,
         'previous_rate': previous_rate,
         'previous_date': previous_date,
-        'comparison_is_previous_calendar_day': comparison_is_previous_calendar_day,
+        'month_start_rate': month_start_rate,
+        'month_start_date': month_start_date,
         'monthly_rate': monthly_rate,
         'monthly_date': monthly_date,
         'change_pct': round(change_pct, 2),
