@@ -230,13 +230,13 @@
         <h2>Apa yang sebenarnya dibaca dari project ini?</h2>
         <p>
             EcoDash membantu membaca arah ekonomi Indonesia melalui dua hal utama:
-            prediksi inflasi jangka dekat dan estimasi daya beli masyarakat. Jadi dashboard ini
-            bukan cuma menampilkan angka, tetapi mencoba menjawab apakah kondisi ekonomi sedang
-            memberi ruang belanja yang lebih longgar atau justru makin tertekan.
+            prediksi inflasi jangka dekat dan estimasi proksi daya beli masyarakat. Jadi dashboard ini
+            tidak hanya menampilkan angka, tetapi juga membantu membaca apakah kondisi ekonomi
+            memberi ruang belanja yang lebih kuat atau sedang berada di bawah tekanan.
         </p>
         <div class="guide-cta">
             <a class="guide-link primary" href="{% url 'landing' %}">Buka dashboard</a>
-            <a class="guide-link secondary" href="{% url 'daya_beli' %}">Coba simulasi daya beli</a>
+            <a class="guide-link secondary" href="{% url 'daya_beli' %}">Buka simulasi proksi daya beli</a>
         </div>
     </div>
 
@@ -246,7 +246,8 @@
             <p>
                 Bagian inflasi memproyeksikan perubahan harga dalam waktu dekat berdasarkan data historis
                 dan variabel ekonomi terkait. Bagian daya beli memperkirakan pengeluaran riil per kapita per bulan,
-                sehingga pembacaannya lebih dekat ke kapasitas konsumsi setelah penyesuaian inflasi tahunan.
+                sehingga pembacaannya lebih dekat ke kapasitas konsumsi setelah penyesuaian inflasi tahunan dan
+                dipakai sebagai proksi daya beli masyarakat.
             </p>
             <div class="guide-note">
                 Angka pengeluaran riil yang lebih tinggi biasanya berarti ruang belanja masyarakat lebih besar,

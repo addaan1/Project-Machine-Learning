@@ -149,6 +149,29 @@ class DayaBeliSimulationTests(TestCase):
 
         self.assertNotEqual(baseline["predicted_pengeluaran"], adjusted["predicted_pengeluaran"])
 
+    def test_simulate_daya_beli_supports_indonesia_baseline(self):
+        response = self.client.get(reverse("api_simulate"), {"provinsi": "Indonesia", "inflasi": 2.5})
+        data = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["province"], "Indonesia")
+        self.assertGreater(data["predicted_pengeluaran"], 800000)
+        self.assertEqual(data["inputs_used"]["inflasi"], 2.5)
+
+    def test_simulate_daya_beli_high_inflation_scenario_stays_in_realistic_band(self):
+        baseline = self.client.get(reverse("api_simulate"), {"provinsi": "Indonesia", "inflasi": 2.5}).json()
+        stressed = self.client.get(reverse("api_simulate"), {"provinsi": "Indonesia", "inflasi": 6.0}).json()
+
+        self.assertGreater(stressed["predicted_pengeluaran"], 1000000)
+        self.assertLess(stressed["predicted_pengeluaran"], baseline["predicted_pengeluaran"])
+        self.assertEqual(stressed["inputs_used"]["inflasi"], 6.0)
+
+    def test_simulate_requires_wilayah_selection_message(self):
+        response = self.client.get(reverse("api_simulate"))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"], "Wilayah wajib dipilih")
+
     def test_daya_beli_page_renders_basic_and_advanced_modes(self):
         response = self.client.get(reverse("daya_beli"))
         html = response.content.decode()
@@ -156,7 +179,9 @@ class DayaBeliSimulationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Basic")
         self.assertContains(response, "Advanced")
-        self.assertContains(response, "Provinsi")
+        self.assertContains(response, "Wilayah")
+        self.assertContains(response, "Indonesia")
+        self.assertContains(response, "Simulasi pengeluaran riil per kapita sebagai proksi daya beli")
         self.assertContains(response, "pengeluaran riil per kapita per bulan")
         self.assertNotIn("baseValue", html)
         self.assertNotIn("slopePerPercent", html)
@@ -190,8 +215,19 @@ class GuideAndDashboardTests(TestCase):
         self.assertContains(response, "Akumulasi sejak Januari")
         self.assertContains(response, "R^2 uji model daya beli riil")
         self.assertNotContains(response, "Akurasi model daya beli")
+        self.assertContains(response, "Estimasi pengeluaran riil per kapita")
+        self.assertNotContains(response, "Kalau ingin baca cepat")
+        self.assertNotContains(response, "bahasa yang lebih santai")
+        self.assertEqual(response.context["province_count"], 38)
         self.assertContains(response, "Model utama")
         self.assertIn(reverse("guide"), html)
+
+    def test_home_uses_actual_province_count_without_indonesia_aggregate(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["province_count"], 38)
+        self.assertContains(response, "Baseline wilayah terbaru dipakai untuk simulasi dan peta ekonomi.")
 
     def test_inflation_summary_api_uses_no_store_headers(self):
         response = self.client.get(reverse("api_inflasi_summary"))

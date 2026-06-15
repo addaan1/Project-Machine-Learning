@@ -1,9 +1,9 @@
-# EcoDash - Prediksi Inflasi dan Daya Beli Indonesia
+# EcoDash - Prediksi Inflasi dan Proksi Daya Beli Indonesia
 
 EcoDash adalah dashboard analitik ekonomi Indonesia yang mengintegrasikan dua modul inti:
 
 1. forecast inflasi multi-horizon untuk membaca arah tekanan harga
-2. estimasi daya beli per provinsi untuk membaca dampak ke konsumsi rumah tangga
+2. estimasi pengeluaran riil per kapita per provinsi sebagai proksi daya beli rumah tangga
 
 Repositori ini diposisikan untuk demonstrasi profesional, analisis akademik, dan eksplorasi kebijakan berbasis data resmi.
 
@@ -14,7 +14,7 @@ EcoDash saat ini memiliki empat area utama:
 - `Home (/)`: landing page dengan headline forecast publik 1 bulan, kurs USD/IDR harian, dan ringkasan kapabilitas
 - `Dashboard (/dashboard/)`: KPI operasional, ringkasan istilah inflasi, panel USD/IDR live, dan akses cepat ke modul utama
 - `Forecasting (/forecasting/)`: forecast inflasi untuk horizon `1M`, `3M`, `6M`, dan `12M`
-- `Daya Beli (/daya-beli/)`: simulasi per provinsi berbasis inferensi penuh Ridge Regression
+- `Daya Beli (/daya-beli/)`: simulasi per provinsi berbasis inferensi penuh Ridge Regression untuk pengeluaran riil per kapita
 
 Tambahan halaman pendukung:
 
@@ -83,14 +83,18 @@ Implikasi interpretatif:
 
 Semakin jauh horizon, semakin lebar band-nya. Itu perilaku yang diharapkan, bukan bug.
 
-## Model daya beli
+## Model proksi daya beli
 
-Estimasi daya beli menggunakan `Ridge Regression` dengan baseline provinsi terbaru.
+Modul ini tidak memprediksi daya beli murni dalam pengertian teoritis yang ketat. Target yang dipakai adalah
+`pengeluaran riil per kapita per bulan`, lalu hasilnya dibaca sebagai proksi daya beli karena lebih dekat ke ruang
+belanja riil rumah tangga setelah penyesuaian inflasi.
+
+Estimasi dilakukan dengan `Ridge Regression` menggunakan baseline wilayah terbaru.
 
 Karakteristik implementasi:
 
 - simulasi tidak lagi menggunakan aproksimasi linear demo
-- request simulasi membaca baseline provinsi terbaru dari `clean_daya_beli.csv`
+- request simulasi membaca baseline wilayah terbaru dari `clean_daya_beli.csv`
 - input user dioverride ke baseline tersebut
 - fitur turunan dihitung ulang sebelum inferensi
 
@@ -104,8 +108,9 @@ Endpoint simulasi utama:
 
 Catatan interpretasi:
 
-- `R^2` pada model daya beli adalah skor goodness-of-fit pada data uji
+- `R^2` pada model proksi daya beli adalah skor goodness-of-fit pada data uji
 - `R^2` bukan akurasi klasifikasi
+- input `inflasi` pada simulasi dibaca sebagai skenario inflasi tahunan, lalu dipetakan ke skala fitur internal model secara konsisten
 
 ## Artefak utama
 
@@ -194,10 +199,10 @@ python download_domestic.py
 python preprocessing.py
 ```
 
-### 3. Retrain model daya beli
+### 3. Retrain model proksi daya beli
 
 ```bash
-python save_ridge_model.py
+python dashboard/train_daya_beli_ridge.py
 ```
 
 ### 4. Retrain forecast inflasi multi-horizon

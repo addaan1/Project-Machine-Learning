@@ -336,30 +336,30 @@
             <p>
                 Dashboard ini merangkum tiga cara membaca inflasi: perubahan harga bulan ini, perbandingan
                 dengan tahun lalu, dan akumulasi sejak Januari. Setelah itu, lihat proyeksi inflasi,
-                kekuatan model, kurs USD/IDR, dan estimasi daya beli untuk memahami konteks ekonomi secara utuh.
+                kualitas model, kurs USD/IDR, dan estimasi pengeluaran riil per kapita untuk memahami konteks ekonomi secara utuh.
             </p>
             <ul class="orientation-points">
                 <li><strong>Perubahan harga bulan ini</strong> cocok untuk membaca tekanan jangka sangat dekat.</li>
-                <li><strong>Perbandingan dengan bulan yang sama tahun lalu</strong> membantu melihat apakah situasi sekarang lebih panas atau lebih tenang.</li>
+                <li><strong>Perbandingan dengan bulan yang sama tahun lalu</strong> membantu melihat posisi inflasi terhadap titik pembanding tahunan.</li>
                 <li><strong>Akumulasi sejak Januari</strong> berguna untuk membaca arah sepanjang tahun berjalan.</li>
             </ul>
             <div class="orientation-actions">
                 <a class="dash-link primary" href="{% url 'guide' %}">Baca panduan lengkap</a>
-                <a class="dash-link secondary" href="{% url 'daya_beli' %}">Coba simulasi daya beli</a>
+                <a class="dash-link secondary" href="{% url 'daya_beli' %}">Buka simulasi proksi daya beli</a>
             </div>
         </div>
         <div class="orientation-side">
             <div class="mini-explain">
-                <strong>Kalau ingin baca cepat</strong>
-                <span>Lihat dulu tiga kartu inflasi di bawah, baru lanjut ke KPI besar dan panel kurs.</span>
+                <strong>Urutan pembacaan singkat</strong>
+                <span>Tinjau tiga indikator inflasi terlebih dahulu, lalu lanjutkan ke KPI utama dan panel kurs.</span>
             </div>
             <div class="mini-explain">
-                <strong>Kalau ingin paham istilah teknis</strong>
-                <span>Halaman Panduan menjelaskan MoM, YoY, Y-to-D, baseline, dan cara kerja model dengan bahasa yang lebih santai.</span>
+                <strong>Referensi metodologis</strong>
+                <span>Halaman Panduan menjelaskan MoM, YoY, Y-to-D, baseline, dan kerangka kerja model secara ringkas.</span>
             </div>
             <div class="mini-explain">
-                <strong>Kalau ingin eksplor skenario</strong>
-                <span>Gunakan halaman Daya Beli untuk melihat bagaimana perubahan inflasi dan indikator inti memengaruhi estimasi pengeluaran.</span>
+                <strong>Eksplorasi skenario</strong>
+                <span>Gunakan halaman Daya Beli untuk melihat bagaimana perubahan inflasi dan indikator inti memengaruhi estimasi pengeluaran riil.</span>
             </div>
         </div>
     </section>
@@ -424,7 +424,7 @@
                 <div class="kpi-icon" style="background: rgba(0, 188, 212, 0.12); color: var(--accent-info);"><i class="fas fa-wallet"></i></div>
                 <span class="kpi-tag">Household</span>
             </div>
-            <div class="kpi-label">Estimasi daya beli riil rata-rata</div>
+            <div class="kpi-label">Estimasi pengeluaran riil per kapita</div>
             <div class="kpi-value" style="color: var(--text-primary);">Rp {{ rata_pengeluaran }}</div>
             <div class="kpi-sub">Gambaran pengeluaran riil per kapita bulanan dari baseline nasional terbaru setelah penyesuaian inflasi.</div>
         </article>
@@ -643,7 +643,7 @@
         }
 
         document.getElementById('usdValue').textContent = formatRupiah(data.latest);
-        document.getElementById('usdDate').textContent = `Update harian: ${formatDisplayDate(data.daily_date || data.date_label || '-')}`;
+        document.getElementById('usdDate').textContent = `Tanggal data diambil: ${formatDisplayDate(data.daily_date || data.date_label || '-')}`;
 
         const changeEl = document.getElementById('usdChange');
         const changePct = Number(data.change_pct || 0);

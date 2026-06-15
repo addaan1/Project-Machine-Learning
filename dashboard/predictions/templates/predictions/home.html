@@ -711,7 +711,7 @@
                         <div class="terminal-panel">
                             <small>Provinsi tercakup</small>
                             <strong>{{ province_count }}</strong>
-                            <span>Baseline provinsi terbaru dipakai untuk simulasi dan peta ekonomi.</span>
+                            <span>Baseline wilayah terbaru dipakai untuk simulasi dan peta ekonomi.</span>
                         </div>
                     </div>
                 </div>
@@ -744,6 +744,7 @@
                     <div class="stat-label">USD/IDR Kurs</div>
                     <div class="stat-value" id="home-usd-value-clone">Memuat...</div>
                     <div class="stat-change flat" id="home-usd-change-clone"><i class="fas fa-sync-alt"></i> Kurs harian terbaru</div>
+                    <div class="stat-note" id="home-usd-fetched-at">Tanggal data diambil: -</div>
                     <div class="stat-spark"><canvas id="spark-usd"></canvas></div>
                 </div>
                 <div class="stat-card" data-parallax="0.14">
@@ -772,7 +773,7 @@
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-wallet"></i></div>
                     <h3>Simulasi Daya Beli</h3>
-                    <p>Inferensi penuh Ridge Regression untuk pengeluaran riil per kapita, memakai baseline provinsi terbaru dan validasi kronologis.</p>
+                    <p>Inferensi penuh Ridge Regression untuk pengeluaran riil per kapita, memakai baseline wilayah terbaru dan validasi kronologis.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fas fa-map-marked-alt"></i></div>
@@ -803,7 +804,7 @@
             <div class="section-header reveal">
                 <span class="tag">Data Flow</span>
                 <h2>Data resmi masuk, fitur dibentuk, model berjalan, insight ditampilkan.</h2>
-                <p>Alur ini sengaja dibuat ringkas agar mudah dijelaskan saat presentasi tanpa menghilangkan kesan teknisnya.</p>
+                <p>Alur ini diringkas untuk menampilkan hubungan yang jelas antara sumber data, pembentukan fitur, dan keluaran analitis.</p>
             </div>
             <div class="flow-container reveal">
                 <div class="flow-grid">
@@ -820,7 +821,7 @@
                     <div class="flow-step" data-parallax="0.10">
                         <span class="flow-no">3</span>
                         <h3>Model</h3>
-                        <p>Setiap horizon inflasi diranking ulang dengan MAE walk-forward, lalu Ridge Regression dipakai untuk estimasi daya beli per provinsi.</p>
+                        <p>Setiap horizon inflasi diranking ulang dengan MAE walk-forward, lalu Ridge Regression dipakai untuk estimasi pengeluaran riil per kapita per wilayah.</p>
                     </div>
                     <div class="flow-step" data-parallax="0.13">
                         <span class="flow-no">4</span>
@@ -916,6 +917,8 @@
 
                 document.getElementById('home-usd-value').textContent = formattedRate;
                 document.getElementById('home-usd-date').textContent = formatUsdDate(data.daily_date || data.monthly_date);
+                document.getElementById('home-usd-fetched-at').textContent =
+                    `Tanggal data diambil: ${formatUsdDate(data.daily_date || data.monthly_date)}`;
 
                 const homeChange = document.getElementById('home-usd-change');
                 homeChange.textContent = `${sign}${Math.abs(change).toFixed(2)}% ${comparisonDate}`;
@@ -941,6 +944,7 @@
                 document.getElementById('home-usd-change').textContent = 'Gagal memuat kurs';
                 document.getElementById('home-usd-value-clone').textContent = 'Tidak tersedia';
                 document.getElementById('home-usd-change-clone').textContent = 'Gagal memuat kurs';
+                document.getElementById('home-usd-fetched-at').textContent = 'Tanggal data diambil: tidak tersedia';
             });
 
         const parallaxNodes = Array.from(document.querySelectorAll('[data-parallax]'));

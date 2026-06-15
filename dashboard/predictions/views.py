@@ -250,6 +250,27 @@ def _build_province_simulation_baselines(project_root):
     if df.empty:
         return {}
 
+    def _aggregate_national_row(frame):
+        if frame.empty:
+            return None
+        numeric_columns = frame.select_dtypes(include=[np.number]).columns.tolist()
+        weights = frame.get('Jumlah_Penduduk')
+        use_weights = weights is not None and weights.notna().any() and float(weights.fillna(0).sum()) > 0
+
+        aggregated = {'Provinsi': 'Indonesia'}
+        for column in numeric_columns:
+            series = frame[column].astype(float)
+            valid_mask = series.notna()
+            if not valid_mask.any():
+                continue
+            if use_weights:
+                local_weights = weights[valid_mask].fillna(0).astype(float)
+                if float(local_weights.sum()) > 0:
+                    aggregated[column] = float(np.average(series[valid_mask], weights=local_weights))
+                    continue
+            aggregated[column] = float(series[valid_mask].mean())
+        return aggregated
+
     latest_rows = df.groupby('Provinsi').tail(1).copy()
     baselines = {}
     for _, row in latest_rows.iterrows():
@@ -263,6 +284,30 @@ def _build_province_simulation_baselines(project_root):
             'baseline_pengeluaran_nominal': _safe_float(row_dict.get(NOMINAL_TARGET_COLUMN), 1450000.0),
             'fields': row_dict,
         }
+
+    latest_year = int(df['Tahun'].max())
+    national_latest = _aggregate_national_row(df[df['Tahun'] == latest_year].copy())
+    if national_latest is not None:
+        previous_year = latest_year - 1
+        national_previous = _aggregate_national_row(df[df['Tahun'] == previous_year].copy()) or {}
+        for key in (
+            'Prev_Real_UMP',
+            'Prev_PDRB_HargaKonstan',
+            'Prev_TPT',
+            'Prev_Total_Pengeluaran_Riil',
+            'Real_UMP_Growth',
+            'PDRB_HargaKonstan_Growth',
+            'TPT_Growth',
+        ):
+            if key not in national_latest and key in national_previous:
+                national_latest[key] = national_previous[key]
+        national_latest['Tahun'] = latest_year
+        baselines['Indonesia'] = {
+            'baseline_year': latest_year,
+            'baseline_pengeluaran': _safe_float(national_latest.get(TARGET_COLUMN), 1450000.0),
+            'baseline_pengeluaran_nominal': _safe_float(national_latest.get(NOMINAL_TARGET_COLUMN), 1450000.0),
+            'fields': national_latest,
+        }
     return baselines
 
 
@@ -272,6 +317,11 @@ def _get_province_simulation_baselines():
         project_root = os.path.dirname(settings.BASE_DIR)
         PROVINCE_SIMULATION_BASELINES = _build_province_simulation_baselines(project_root)
     return PROVINCE_SIMULATION_BASELINES or {}
+
+
+def _get_actual_province_count():
+    baselines = _get_province_simulation_baselines()
+    return len([name for name in baselines.keys() if name != 'Indonesia'])
 
 
 def _build_simulation_input(province, overrides=None):
@@ -284,12 +334,29 @@ def _build_simulation_input(province, overrides=None):
     fields = baseline['fields']
     overrides = overrides or {}
 
-    inflasi_pct = _safe_float(overrides.get('inflasi'), fields.get('Inflasi_Rata_Tahunan', 0.0))
+    baseline_local_inflation = _safe_float(fields.get('Inflasi_Rata_Tahunan'), 0.0)
+    baseline_annual_inflation = _safe_float(
+        fields.get('Inflasi_WB_Annual'),
+        baseline_local_inflation,
+    )
+    scenario_annual_inflation = _safe_float(
+        overrides.get('inflasi'),
+        baseline_annual_inflation,
+    )
+    if abs(baseline_annual_inflation) > 1e-9:
+        local_to_annual_ratio = baseline_local_inflation / baseline_annual_inflation
+        scenario_local_inflation = scenario_annual_inflation * local_to_annual_ratio
+    else:
+        scenario_local_inflation = _safe_float(
+            overrides.get('inflasi'),
+            baseline_local_inflation,
+        )
+
     ump_value = _safe_float(overrides.get('ump'), fields.get('UMP', 3000000.0))
     tpt_value = _safe_float(overrides.get('tpt'), fields.get('TPT', 5.0))
     pdrb_value = _safe_float(overrides.get('pdrb_hargakonstan'), fields.get('PDRB_HargaKonstan', 40000.0))
 
-    denominator = 1 + (inflasi_pct / 100.0)
+    denominator = 1 + (scenario_annual_inflation / 100.0)
     real_ump = ump_value / denominator if denominator != 0 else ump_value
 
     prev_real_ump = _safe_float(fields.get('Prev_Real_UMP'), fields.get('Real_UMP', real_ump))
@@ -303,7 +370,7 @@ def _build_simulation_input(province, overrides=None):
         'TPT': tpt_value,
         'TPAK': _safe_float(fields.get('TPAK'), 68.0),
         'PDRB_HargaKonstan': pdrb_value,
-        'Inflasi_Rata_Tahunan': inflasi_pct,
+        'Inflasi_Rata_Tahunan': scenario_local_inflation,
         'Inflation_Deflator': denominator,
         'Gini_Rasio': _safe_float(fields.get('Gini_Rasio'), 0.30),
         'IPM': _safe_float(fields.get('IPM'), 72.4),
@@ -312,7 +379,7 @@ def _build_simulation_input(province, overrides=None):
         'Pct_Populasi': _safe_float(fields.get('Pct_Populasi'), 2.8),
         'Pct_Akses_Air_Bersih': _safe_float(fields.get('Pct_Akses_Air_Bersih'), 87.7),
         'Protein_gram_per_hari': _safe_float(fields.get('Protein_gram_per_hari'), 62.3),
-        'Inflasi_WB_Annual': _safe_float(fields.get('Inflasi_WB_Annual'), 2.7),
+        'Inflasi_WB_Annual': scenario_annual_inflation,
         'GDP_PerCapita_PPP': _safe_float(fields.get('GDP_PerCapita_PPP'), 13800.0),
         'Pct_Unemployment_WB': _safe_float(fields.get('Pct_Unemployment_WB'), 3.4),
         'Poverty_Headcount_Pct': _safe_float(fields.get('Poverty_Headcount_Pct'), 9.4),
@@ -325,7 +392,7 @@ def _build_simulation_input(province, overrides=None):
         ),
         'TPT_Growth': _pct_change(tpt_value, prev_tpt, fields.get('TPT_Growth', 0.0)),
         'UMP_x_PDRB': real_ump * pdrb_value,
-        'Inflasi_x_TPT': inflasi_pct * tpt_value,
+        'Inflasi_x_TPT': scenario_local_inflation * tpt_value,
         'Log_PDRB': float(np.log1p(max(pdrb_value, 0.0))),
         'Log_UMP': float(np.log1p(max(real_ump, 0.0))),
         'Prev_Total_Pengeluaran_Riil': _safe_float(fields.get('Prev_Total_Pengeluaran_Riil'), baseline['baseline_pengeluaran']),
@@ -551,7 +618,7 @@ def landing_page(request):
         'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
         'ridge_test_mae': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_mae'), 0.0), 0),
         'ridge_target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
-        'province_count': len(_get_province_simulation_baselines()),
+        'province_count': _get_actual_province_count(),
         'chart_labels': json.dumps(chart_labels),
         'ump_data': json.dumps(ump_data),
         'pdrb_data': json.dumps(pdrb_data),
@@ -577,10 +644,12 @@ def daya_beli_page(request):
     load_models(load_inflation=False)
 
     baselines = _get_province_simulation_baselines()
-    province_names = sorted(baselines.keys())
+    province_names = sorted((name for name in baselines.keys() if name != 'Indonesia'))
+    if 'Indonesia' in baselines:
+        province_names = ['Indonesia'] + province_names
     default_province = (RIDGE_SIMULATION_DEFAULTS or {}).get('Provinsi')
     if default_province not in baselines:
-        default_province = province_names[0] if province_names else ''
+        default_province = 'Indonesia' if 'Indonesia' in baselines else (province_names[0] if province_names else '')
 
     province_defaults = {}
     for province in province_names:
@@ -590,7 +659,7 @@ def daya_beli_page(request):
             'year': baseline['baseline_year'],
             'baseline_pengeluaran': round(_safe_float(baseline['baseline_pengeluaran']), 2),
             'baseline_pengeluaran_nominal': round(_safe_float(baseline['baseline_pengeluaran_nominal']), 2),
-            'inflasi': round(_safe_float(fields.get('Inflasi_Rata_Tahunan')), 2),
+            'inflasi': round(_safe_float(fields.get('Inflasi_WB_Annual'), fields.get('Inflasi_Rata_Tahunan')), 2),
             'ump': round(_safe_float(fields.get('UMP')), 2),
             'tpt': round(_safe_float(fields.get('TPT')), 3),
             'pdrb_hargakonstan': round(_safe_float(fields.get('PDRB_HargaKonstan')), 2),
@@ -607,7 +676,7 @@ def daya_beli_page(request):
 def simulate_daya_beli(request):
     provinsi = request.GET.get('provinsi', '').strip()
     if not provinsi:
-        return JsonResponse({'error': 'Provinsi wajib dipilih'}, status=400)
+        return JsonResponse({'error': 'Wilayah wajib dipilih'}, status=400)
 
     inflasi_val = request.GET.get('inflasi')
     ump_val = request.GET.get('ump')
@@ -632,7 +701,7 @@ def simulate_daya_beli(request):
         return JsonResponse({'error': 'Model belum siap'}, status=500)
     if (RIDGE_MODEL_BUNDLE or {}).get('legacy_artifact'):
         return JsonResponse(
-            {'error': 'Artifact model daya beli lama tidak kompatibel dengan inference per provinsi terbaru.'},
+            {'error': 'Artifact model lama tidak kompatibel dengan inference per wilayah terbaru.'},
             status=500,
         )
 
@@ -650,11 +719,15 @@ def simulate_daya_beli(request):
         else:
             status_label = 'stabil'
 
-        inflasi_used = _safe_float(dummy_input.at[0, 'Inflasi_Rata_Tahunan'])
+        annual_inflation_used = _safe_float(
+            overrides.get('inflasi'),
+            dummy_input.at[0, 'Inflasi_WB_Annual'],
+        )
+        inflation_deflator = _safe_float(dummy_input.at[0, 'Inflation_Deflator'], 1.0)
         inputs_used = {
             'provinsi': provinsi,
-            'inflasi': round(inflasi_used, 2),
-            'ump': round(_safe_float(dummy_input.at[0, 'Real_UMP']) * (1 + (inflasi_used / 100.0)), 2),
+            'inflasi': round(annual_inflation_used, 2),
+            'ump': round(_safe_float(dummy_input.at[0, 'Real_UMP']) * inflation_deflator, 2),
             'tpt': round(_safe_float(dummy_input.at[0, 'TPT']), 3),
             'pdrb_hargakonstan': round(_safe_float(dummy_input.at[0, 'PDRB_HargaKonstan']), 2),
         }
@@ -693,7 +766,7 @@ def home_page(request):
         'ridge_test_r2': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_r2'), 0.0), 3),
         'ridge_test_mae': round(_safe_float((RIDGE_MODEL_BUNDLE or {}).get('test_mae'), 0.0), 0),
         'ridge_target_label': (RIDGE_MODEL_BUNDLE or {}).get('target_label', TARGET_LABEL),
-        'province_count': len(_get_province_simulation_baselines()),
+        'province_count': _get_actual_province_count(),
     }
     return render(request, 'predictions/home.html', context)
 
