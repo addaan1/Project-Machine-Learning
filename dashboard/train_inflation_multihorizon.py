@@ -107,6 +107,15 @@ def get_feature_columns(df):
 def get_prophet_regressors(df):
     return [column for column in PROPHET_REGRESSOR_CANDIDATES if column in df.columns]
 
+
+def metric_source_priority(metric_source):
+    priority = {
+        "walk_forward": 0,
+        "chronological_holdout": 1,
+        "not_evaluated": 2,
+    }
+    return priority.get(metric_source, 3)
+
 def recursive_forecast(model, horizon, exog_future=None):
     """
     Forecast `horizon` bulan secara iteratif (recursive).
@@ -200,7 +209,7 @@ def walkforward_arima(df, horizon):
             forecast = fitted.forecast(steps=horizon)
             pred = float(np.asarray(forecast).reshape(-1)[-1])
         except Exception:
-            pred = recursive_forecast(model, horizon)[-1]
+            pred = float(train_y.iloc[-1])
         predictions.append(pred)
         actuals.append(actual)
 
@@ -255,7 +264,8 @@ def walkforward_sarimax(df, horizon, regressors=None, result_id="sarimax", resul
                 enforce_invertibility=False,
             )
             fitted = model.fit(disp=False)
-            pred = recursive_forecast(model, horizon, exog_future=future_exog)[-1]
+            forecast = fitted.forecast(steps=horizon, exog=future_exog)
+            pred = float(np.asarray(forecast).reshape(-1)[-1])
         except Exception:
             pred = float(train_y.iloc[-1])
         predictions.append(pred)
@@ -408,7 +418,9 @@ def walkforward_prophet(df, horizon):
 
     model, regressors = _fit_prophet(df.copy())
     future_exog, future_dates = build_future_exog(df, horizon, regressors)
-    future_point = recursive_forecast(model, horizon, exog_future=future_exog)[-1]
+    future_frame = future_exog.copy()
+    future_frame.insert(0, "ds", future_dates)
+    future_point = float(model.predict(future_frame)["yhat"].iloc[-1])
     return {
         "id": "prophet",
         "name": professional_model_name("prophet"),
@@ -758,6 +770,7 @@ def forecast_for_horizon(df, horizon):
         comparison,
         key=lambda item: (
             item["status"] != "ok",
+            metric_source_priority(item.get("metric_source")),
             item.get("metrics", {}).get("mae", 9999.0),
             item["name"],
         ),
