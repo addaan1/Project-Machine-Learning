@@ -154,33 +154,38 @@
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
+    }
+    .data-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         color: var(--text-secondary, #5d606b);
         font-size: 12px;
         white-space: nowrap;
-        padding: 8px 12px;
+        padding: 9px 13px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.84);
-        border: 1px solid rgba(16, 24, 40, 0.06);
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        box-shadow: 0 6px 18px rgba(19, 23, 34, 0.05);
     }
-
-    .data-status strong {
+    .data-status-badge strong {
         color: var(--text-primary, #131722);
-        font-weight: 700;
+        font-weight: 750;
     }
-
-    .data-status-sep {
-        width: 4px;
-        height: 4px;
-        border-radius: 999px;
-        background: rgba(93, 96, 107, 0.45);
-    }
-
     .data-status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
         background: #16a085;
         box-shadow: 0 0 0 4px rgba(22, 160, 133, 0.11);
+    }
+    .data-status-year {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #2962ff;
+        box-shadow: 0 0 0 4px rgba(41, 98, 255, 0.12);
     }
 
     .map-reset {
@@ -636,14 +641,26 @@
             <div class="metric-field">
                 <label for="mapMetric">Indikator ekonomi</label>
                 <select id="mapMetric" class="metric-select">
-                    <option value="Total_Pengeluaran_Riil">Daya Beli Riil</option>
-                    <option value="Total_Pengeluaran">Pengeluaran Nominal</option>
-                    <option value="UMP">Upah Minimum Provinsi</option>
-                    <option value="PDRB_HargaKonstan">PDRB Per Kapita</option>
-                    <option value="TPT">Tingkat Pengangguran (TPT)</option>
-                    <option value="IPM">Indeks Pembangunan Manusia</option>
-                    <option value="Gini_Rasio">Gini Ratio</option>
-                    <option value="Pct_Penduduk_Miskin">% Penduduk Miskin</option>
+                    <optgroup label="Kesejahteraan">
+                        <option value="Total_Pengeluaran_Riil">Daya Beli Riil</option>
+                        <option value="Total_Pengeluaran">Pengeluaran Nominal</option>
+                        <option value="Pct_Penduduk_Miskin">% Penduduk Miskin</option>
+                        <option value="Garis_Kemiskinan">Garis Kemiskinan</option>
+                    </optgroup>
+                    <optgroup label="Pasar kerja & ekonomi">
+                        <option value="UMP">Upah Minimum Provinsi</option>
+                        <option value="TPT">Tingkat Pengangguran (TPT)</option>
+                        <option value="TPAK">Tingkat Partisipasi Angkatan Kerja</option>
+                        <option value="PDRB_HargaKonstan">PDRB Per Kapita Konstan</option>
+                        <option value="PDRB_HargaBerlaku">PDRB Per Kapita Berlaku</option>
+                        <option value="NTP">Nilai Tukar Petani</option>
+                    </optgroup>
+                    <optgroup label="Kualitas hidup & struktur sosial">
+                        <option value="IPM">Indeks Pembangunan Manusia</option>
+                        <option value="Gini_Rasio">Gini Ratio</option>
+                        <option value="Pct_Sanitasi_Layak">Akses Sanitasi Layak</option>
+                        <option value="Rerata_Lama_Sekolah">Rata-rata Lama Sekolah</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="metric-field">
@@ -651,7 +668,6 @@
                 <select id="mapYear" class="metric-select year-select"></select>
             </div>
             <div class="data-status">
-                <span class="data-status-dot" aria-hidden="true"></span>
                 <span id="dataStatusText">Memuat data provinsi...</span>
             </div>
         </div>
@@ -697,10 +713,16 @@ const METRIC_INFO = {
     Total_Pengeluaran: { label: 'Pengeluaran Nominal', description: 'Rata-rata total pengeluaran per kapita sebelum penyesuaian inflasi', format: 'currency' },
     UMP: { label: 'Upah Minimum Provinsi', description: 'Perbandingan UMP antarprovinsi', format: 'currency' },
     PDRB_HargaKonstan: { label: 'PDRB Per Kapita', description: 'PDRB harga konstan per kapita', format: 'currency' },
+    PDRB_HargaBerlaku: { label: 'PDRB Harga Berlaku', description: 'Skala ekonomi nominal per kapita antarwilayah', format: 'currency' },
     TPT: { label: 'Tingkat Pengangguran', description: 'Tingkat pengangguran terbuka', format: 'percent' },
+    TPAK: { label: 'TPAK', description: 'Partisipasi angkatan kerja sebagai konteks kedalaman pasar tenaga kerja', format: 'percent' },
     IPM: { label: 'Indeks Pembangunan Manusia', description: 'Capaian pembangunan manusia', format: 'number' },
     Gini_Rasio: { label: 'Gini Ratio', description: 'Tingkat ketimpangan pengeluaran', format: 'ratio' },
-    Pct_Penduduk_Miskin: { label: 'Penduduk Miskin', description: 'Persentase penduduk miskin', format: 'percent' }
+    Pct_Penduduk_Miskin: { label: 'Penduduk Miskin', description: 'Persentase penduduk miskin', format: 'percent' },
+    Garis_Kemiskinan: { label: 'Garis Kemiskinan', description: 'Ambang minimum pengeluaran per kapita per bulan pada wilayah aktif', format: 'currency' },
+    NTP: { label: 'Nilai Tukar Petani', description: 'Indikator daya tukar relatif rumah tangga tani terhadap harga yang diterima dan dibayar', format: 'number' },
+    Pct_Sanitasi_Layak: { label: 'Akses Sanitasi Layak', description: 'Persentase rumah tangga dengan akses sanitasi layak', format: 'percent' },
+    Rerata_Lama_Sekolah: { label: 'Rata-rata Lama Sekolah', description: 'Konteks kualitas modal manusia wilayah', format: 'number' }
 };
 
 const PROVINCE_ALIASES = {
@@ -920,6 +942,11 @@ function updateSummary(values) {
     const missingNote = missingProvinces.length
         ? ` ${missingProvinces.length} provinsi belum tersedia pada tahun aktif: ${missingProvinces.join(', ')}.`
         : '';
+    const summarySignal = activeStats.average && activeStats.median
+        ? (activeStats.average >= activeStats.median
+            ? 'Distribusi wilayah aktif cenderung ditarik oleh beberapa provinsi dengan level indikator relatif tinggi.'
+            : 'Sebaran indikator aktif lebih merata dan tidak terlalu didominasi outlier wilayah.')
+        : 'Sebaran indikator aktif sedang diringkas dari snapshot wilayah terbaru.';
     document.getElementById('mapSummary').innerHTML = `
         <span class="insight-eyebrow">Ringkasan nasional</span>
         <h2 class="insight-title">${METRIC_INFO[activeMetric].label}</h2>
@@ -945,7 +972,7 @@ function updateSummary(values) {
             </div>
         </div>
         <div class="summary-caption">
-            ${dataCoverageLabel} | Tahun aktif ${selectedYear || latestYear || 'terbaru'}. Klik ranking di panel kanan untuk memfokuskan tampilan ke provinsi terkait.${missingNote}
+            ${summarySignal} ${dataCoverageLabel} | Tahun aktif ${selectedYear || latestYear || 'terbaru'}. Klik ranking di panel kanan untuk memfokuskan tampilan ke provinsi terkait.${missingNote}
         </div>
     `;
 }
@@ -1064,17 +1091,23 @@ function renderDataStatus(mode = 'ready', yearLabel = '', count = 0, total = 0) 
     const el = document.getElementById('dataStatusText');
     if (!el) return;
     if (mode === 'loading') {
-        el.innerHTML = `<strong>Memuat</strong><span class="data-status-sep"></span><span>Data tahun ${yearLabel}</span>`;
+        el.innerHTML = `
+            <span class="data-status-badge"><span class="data-status-dot" aria-hidden="true"></span><strong>Memuat cakupan</strong></span>
+            <span class="data-status-badge"><span class="data-status-year" aria-hidden="true"></span><strong>Tahun ${yearLabel}</strong></span>
+        `;
         return;
     }
     if (mode === 'error') {
-        el.innerHTML = `<strong>Data tidak tersedia</strong>`;
+        el.innerHTML = `<span class="data-status-badge"><strong>Data tidak tersedia</strong></span>`;
         return;
     }
     const coverageText = total && total > count
         ? `Cakupan ${count} dari ${total} provinsi`
         : `Cakupan ${count} provinsi`;
-    el.innerHTML = `<strong>${coverageText}</strong><span class="data-status-sep"></span><span>Tahun ${yearLabel}</span>`;
+    el.innerHTML = `
+        <span class="data-status-badge"><span class="data-status-dot" aria-hidden="true"></span><strong>${coverageText}</strong></span>
+        <span class="data-status-badge"><span class="data-status-year" aria-hidden="true"></span><strong>Tahun ${yearLabel}</strong></span>
+    `;
 }
 
 async function refreshMetricSnapshot(year = null) {

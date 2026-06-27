@@ -265,8 +265,11 @@
         border-color: rgba(41, 98, 255, 0.18);
     }
     .result-limitations {
-        background: linear-gradient(180deg, rgba(255, 179, 0, 0.08), #ffffff 100%);
-        border-color: rgba(255, 179, 0, 0.22);
+        background:
+            radial-gradient(circle at top right, rgba(245, 158, 11, 0.14), transparent 35%),
+            linear-gradient(180deg, rgba(255, 248, 235, 0.98), #ffffff 100%);
+        border-color: rgba(245, 158, 11, 0.34);
+        box-shadow: 0 10px 24px rgba(245, 158, 11, 0.08);
     }
     .result-section-title {
         font-size: 11px;
@@ -275,6 +278,9 @@
         font-weight: 700;
         color: var(--text-tertiary);
         margin-bottom: 8px;
+    }
+    .result-limitations .result-section-title {
+        color: #b66a00;
     }
     .interpretation-highlight {
         font-size: 16px;
