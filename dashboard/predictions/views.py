@@ -400,6 +400,34 @@ def _pct_change(current, previous, fallback=0.0):
     return ((current_val - previous_val) / previous_val) * 100.0
 
 
+def _format_compact_rupiah(value):
+    numeric = _safe_float(value, 0.0)
+    if abs(numeric) >= 1_000_000_000:
+        return f"Rp {numeric / 1_000_000_000:.2f} M"
+    if abs(numeric) >= 1_000_000:
+        return f"Rp {numeric / 1_000_000:.2f} jt"
+    return f"Rp {numeric:,.0f}".replace(",", ".")
+
+
+def _format_compact_number(value):
+    numeric = _safe_float(value, 0.0)
+    if abs(numeric) >= 1_000_000_000:
+        return f"{numeric / 1_000_000_000:.2f} M"
+    if abs(numeric) >= 1_000_000:
+        return f"{numeric / 1_000_000:.2f} jt"
+    return f"{numeric:,.0f}".replace(",", ".")
+
+
+def _format_percent(value, digits=2):
+    numeric = _safe_float(value, 0.0)
+    return f"{numeric:.{digits}f}%"
+
+
+def _format_decimal(value, digits=2):
+    numeric = _safe_float(value, 0.0)
+    return f"{numeric:.{digits}f}"
+
+
 def _build_ridge_simulation_defaults(project_root):
     """Build a realistic baseline row that matches Ridge training features."""
     path = os.path.join(project_root, 'datasets', 'processed', 'clean_daya_beli.csv')
@@ -886,9 +914,16 @@ def landing_page(request):
     ump_data = []
     pdrb_data = []
     pie_data = []
+    regional_snapshot_cards = []
+    regional_snapshot_brief = None
+    regional_metric_explorer = {}
+    structural_insight_cards = []
+    quality_of_life_cards = []
+    quality_trend_explorer = {}
+    dashboard_snapshot_year = None
     
     if os.path.exists(db_path):
-        df_db = pd.read_csv(db_path)
+        df_db = prepare_daya_beli_dataframe(pd.read_csv(db_path))
         # Ambil rata-rata UMP per tahun
         yearly_data = df_db.groupby('Tahun').agg({'UMP': 'mean', 'PDRB_HargaKonstan': 'mean'}).reset_index().sort_values('Tahun')
         chart_labels = yearly_data['Tahun'].tolist()
@@ -899,6 +934,318 @@ def landing_page(request):
         makanan_mean = df_db['Pengeluaran_Makanan'].mean() if 'Pengeluaran_Makanan' in df_db.columns else 600000
         bukan_makanan_mean = df_db['Pengeluaran_Bukan_Makanan'].mean() if 'Pengeluaran_Bukan_Makanan' in df_db.columns else 850000
         pie_data = [float(makanan_mean), float(bukan_makanan_mean)]
+
+        if not df_db.empty and 'Tahun' in df_db.columns:
+            dashboard_snapshot_year = int(df_db['Tahun'].max())
+            snapshot = df_db[df_db['Tahun'] == dashboard_snapshot_year].copy()
+            snapshot = snapshot[snapshot['Provinsi'].notna()]
+            snapshot = snapshot[snapshot['Provinsi'] != 'Indonesia']
+
+            if not snapshot.empty:
+                def _snapshot_card(metric, *, ascending=False, title='', value_prefix='', formatter='number', tone='primary'):
+                    if metric not in snapshot.columns:
+                        return None
+                    data = snapshot[['Provinsi', metric]].dropna()
+                    if data.empty:
+                        return None
+                    ranked = data.sort_values(metric, ascending=ascending)
+                    row = ranked.iloc[0]
+                    metric_value = _safe_float(row[metric])
+                    if formatter == 'currency':
+                        formatted_value = _format_compact_rupiah(metric_value)
+                    elif formatter == 'percent':
+                        formatted_value = f"{metric_value:.2f}%"
+                    else:
+                        formatted_value = _format_compact_number(metric_value)
+                    prefix = f"{value_prefix} " if value_prefix else ""
+                    return {
+                        'tone': tone,
+                        'title': title,
+                        'province': row['Provinsi'],
+                        'value': formatted_value,
+                        'note': f"{prefix}{formatted_value} pada snapshot wilayah {dashboard_snapshot_year}.",
+                    }
+
+                def _snapshot_point(metric, *, ascending=False, formatter='number'):
+                    if metric not in snapshot.columns:
+                        return None
+                    data = snapshot[['Provinsi', metric]].dropna()
+                    if data.empty:
+                        return None
+                    ranked = data.sort_values(metric, ascending=ascending)
+                    row = ranked.iloc[0]
+                    metric_value = _safe_float(row[metric])
+                    if formatter == 'currency':
+                        formatted_value = _format_compact_rupiah(metric_value)
+                    elif formatter == 'percent':
+                        formatted_value = f"{metric_value:.2f}%"
+                    else:
+                        formatted_value = _format_compact_number(metric_value)
+                    return {
+                        'province': row['Provinsi'],
+                        'value': formatted_value,
+                    }
+
+                def _metric_explorer(metric, *, label, ascending=False, formatter='number'):
+                    if metric not in snapshot.columns:
+                        return None
+                    data = snapshot[['Provinsi', metric]].dropna()
+                    if data.empty:
+                        return None
+                    ranked = data.sort_values(metric, ascending=ascending).head(5)
+                    values = [_safe_float(value) for value in ranked[metric].tolist()]
+                    if formatter == 'currency':
+                        formatted_values = [_format_compact_rupiah(value) for value in values]
+                    elif formatter == 'percent':
+                        formatted_values = [f"{value:.2f}%" for value in values]
+                    else:
+                        formatted_values = [_format_compact_number(value) for value in values]
+                    return {
+                        'label': label,
+                        'metric': metric,
+                        'formatter': formatter,
+                        'direction': 'ascending' if ascending else 'descending',
+                        'provinces': ranked['Provinsi'].tolist(),
+                        'values': values,
+                        'formatted_values': formatted_values,
+                    }
+
+                def _latest_row(metric, *, ascending=False):
+                    if metric not in snapshot.columns:
+                        return None
+                    data = snapshot[['Provinsi', metric]].dropna()
+                    if data.empty:
+                        return None
+                    ranked = data.sort_values(metric, ascending=ascending)
+                    return ranked.iloc[0]
+
+                def _snapshot_average(metric):
+                    if metric not in snapshot.columns:
+                        return None
+                    data = snapshot[metric].dropna()
+                    if data.empty:
+                        return None
+                    return float(data.mean())
+
+                def _trend_payload(metric, *, label, formatter='number'):
+                    if metric not in df_db.columns:
+                        return None
+                    series = (
+                        df_db.groupby('Tahun')[metric]
+                        .mean()
+                        .dropna()
+                        .reset_index()
+                        .sort_values('Tahun')
+                    )
+                    if series.empty:
+                        return None
+                    values = [_safe_float(value) for value in series[metric].tolist()]
+                    if formatter == 'percent':
+                        formatted_values = [_format_percent(value) for value in values]
+                    elif formatter == 'currency':
+                        formatted_values = [_format_compact_rupiah(value) for value in values]
+                    else:
+                        formatted_values = [_format_decimal(value) for value in values]
+                    return {
+                        'label': label,
+                        'metric': metric,
+                        'formatter': formatter,
+                        'years': [int(year) for year in series['Tahun'].tolist()],
+                        'values': values,
+                        'formatted_values': formatted_values,
+                    }
+
+                candidates = [
+                    _snapshot_card(
+                        TARGET_COLUMN,
+                        ascending=False,
+                        title='Proksi daya beli tertinggi',
+                        value_prefix='Pengeluaran riil',
+                        formatter='currency',
+                        tone='primary',
+                    ),
+                    _snapshot_card(
+                        'Pct_Penduduk_Miskin',
+                        ascending=True,
+                        title='Kemiskinan terendah',
+                        value_prefix='Tingkat kemiskinan',
+                        formatter='percent',
+                        tone='amber',
+                    ),
+                    _snapshot_card(
+                        'IPM',
+                        ascending=False,
+                        title='IPM tertinggi',
+                        value_prefix='Indeks pembangunan manusia',
+                        formatter='number',
+                        tone='teal',
+                    ),
+                    _snapshot_card(
+                        'Rerata_Lama_Sekolah',
+                        ascending=False,
+                        title='Lama sekolah tertinggi',
+                        value_prefix='Rata-rata lama sekolah',
+                        formatter='number',
+                        tone='violet',
+                    ),
+                    _snapshot_card(
+                        'Pct_Sanitasi_Layak',
+                        ascending=False,
+                        title='Sanitasi layak tertinggi',
+                        value_prefix='Akses sanitasi',
+                        formatter='percent',
+                        tone='teal',
+                    ),
+                ]
+                regional_snapshot_cards = [card for card in candidates if card]
+
+                top_spending = _snapshot_point(TARGET_COLUMN, ascending=False, formatter='currency')
+                low_poverty = _snapshot_point('Pct_Penduduk_Miskin', ascending=True, formatter='percent')
+                high_ipm = _snapshot_point('IPM', ascending=False, formatter='number')
+                if top_spending and low_poverty and high_ipm:
+                    regional_snapshot_brief = {
+                        'headline': (
+                            f"Pada snapshot {dashboard_snapshot_year}, {top_spending['province']} memimpin proksi daya beli, "
+                            f"{low_poverty['province']} mencatat kemiskinan terendah, dan {high_ipm['province']} berada di posisi teratas untuk IPM."
+                        ),
+                        'detail': (
+                            f"Pembacaan ini membantu memisahkan kekuatan konsumsi ({top_spending['value']}), tekanan sosial "
+                            f"({low_poverty['value']} penduduk miskin), dan kualitas pembangunan manusia ({high_ipm['value']})."
+                        ),
+                    }
+
+                explorer_candidates = {
+                    'spending': _metric_explorer(
+                        TARGET_COLUMN,
+                        label='Top proksi daya beli',
+                        ascending=False,
+                        formatter='currency',
+                    ),
+                    'ipm': _metric_explorer(
+                        'IPM',
+                        label='Top IPM',
+                        ascending=False,
+                        formatter='number',
+                    ),
+                    'poverty': _metric_explorer(
+                        'Pct_Penduduk_Miskin',
+                        label='Kemiskinan terendah',
+                        ascending=True,
+                        formatter='percent',
+                    ),
+                    'sanitation': _metric_explorer(
+                        'Pct_Sanitasi_Layak',
+                        label='Sanitasi layak tertinggi',
+                        ascending=False,
+                        formatter='percent',
+                    ),
+                    'formal': _metric_explorer(
+                        'Pct_Pekerja_Formal',
+                        label='Pekerja formal tertinggi',
+                        ascending=False,
+                        formatter='percent',
+                    ),
+                }
+                regional_metric_explorer = {key: value for key, value in explorer_candidates.items() if value}
+
+                highest_gini = _latest_row('Gini_Rasio', ascending=False)
+                lowest_poverty = _latest_row('Pct_Penduduk_Miskin', ascending=True)
+                highest_formal = _latest_row('Pct_Pekerja_Formal', ascending=False)
+                highest_tpak = _latest_row('TPAK', ascending=False)
+                highest_pdrb = _latest_row('PDRB_HargaKonstan', ascending=False)
+                highest_investment = _latest_row('Realisasi_Investasi_PMDN', ascending=False)
+                highest_air = _latest_row('Pct_Akses_Air_Bersih', ascending=False)
+                highest_calorie = _latest_row('Kalori_kkal_per_hari', ascending=False)
+                highest_school = _latest_row('Rerata_Lama_Sekolah', ascending=False)
+                highest_sanitation = _latest_row('Pct_Sanitasi_Layak', ascending=False)
+                highest_ipm = _latest_row('IPM', ascending=False)
+
+                gini_avg = _snapshot_average('Gini_Rasio')
+                poverty_avg = _snapshot_average('Pct_Penduduk_Miskin')
+                formal_avg = _snapshot_average('Pct_Pekerja_Formal')
+                pdrb_avg = _snapshot_average('PDRB_HargaKonstan')
+
+                structural_candidates = [
+                    {
+                        'tone': 'amber',
+                        'title': 'Ketimpangan dan tekanan sosial',
+                        'value': _format_decimal(gini_avg, 3) if gini_avg is not None else '-',
+                        'value_label': 'Rata-rata gini ratio',
+                        'reference': (
+                            f"Gini tertinggi di {highest_gini['Provinsi']} dan kemiskinan terendah di {lowest_poverty['Provinsi']}."
+                            if highest_gini is not None and lowest_poverty is not None else ''
+                        ),
+                        'note': (
+                            f"Rata-rata kemiskinan wilayah aktif berada di {_format_percent(poverty_avg)} sehingga pembacaan distribusi pengeluaran perlu dibaca bersama tekanan sosial."
+                            if poverty_avg is not None else ''
+                        ),
+                    },
+                    {
+                        'tone': 'teal',
+                        'title': 'Kualitas pasar kerja',
+                        'value': _format_percent(formal_avg) if formal_avg is not None else '-',
+                        'value_label': 'Rata-rata pekerja formal',
+                        'reference': (
+                            f"Pekerja formal tertinggi berada di {highest_formal['Provinsi']} dan TPAK tertinggi di {highest_tpak['Provinsi']}."
+                            if highest_formal is not None and highest_tpak is not None else ''
+                        ),
+                        'note': 'Kualitas pasar kerja dibaca dari kombinasi formalitas tenaga kerja, partisipasi angkatan kerja, dan tekanan pengangguran wilayah.',
+                    },
+                    {
+                        'tone': 'primary',
+                        'title': 'Skala ekonomi dan investasi',
+                        'value': _format_compact_rupiah(pdrb_avg) if pdrb_avg is not None else '-',
+                        'value_label': 'Rata-rata PDRB konstan',
+                        'reference': (
+                            f"PDRB konstan tertinggi berada di {highest_pdrb['Provinsi']} dan investasi PMDN tertinggi di {highest_investment['Provinsi']}."
+                            if highest_pdrb is not None and highest_investment is not None else ''
+                        ),
+                        'note': 'Pasangan indikator ini membantu membedakan wilayah yang besar secara ekonomi dari wilayah yang sedang menarik ekspansi investasi domestik.',
+                    },
+                ]
+                structural_insight_cards = [card for card in structural_candidates if card.get('value') != '-']
+
+                quality_candidates = [
+                    {
+                        'tone': 'teal',
+                        'title': 'IPM tertinggi',
+                        'province': highest_ipm['Provinsi'] if highest_ipm is not None else '-',
+                        'value': _format_decimal(highest_ipm['IPM'], 0) if highest_ipm is not None else '-',
+                        'note': 'Posisi teratas pada snapshot kualitas hidup',
+                        'detail': 'Posisi ini menjadi acuan kualitas pembangunan manusia pada snapshot wilayah aktif.',
+                    },
+                    {
+                        'tone': 'violet',
+                        'title': 'Akses dasar terkuat',
+                        'province': highest_air['Provinsi'] if highest_air is not None else '-',
+                        'value': _format_percent(highest_air['Pct_Akses_Air_Bersih']) if highest_air is not None else '-',
+                        'note': 'Akses air bersih tertinggi pada wilayah aktif',
+                        'detail': (
+                            f"Sanitasi tertinggi juga berada di {highest_sanitation['Provinsi']}."
+                            if highest_sanitation is not None else 'Akses dasar dibaca dari air bersih dan sanitasi layak.'
+                        ),
+                    },
+                    {
+                        'tone': 'amber',
+                        'title': 'Pola konsumsi paling kuat',
+                        'province': highest_calorie['Provinsi'] if highest_calorie is not None else '-',
+                        'value': _format_decimal(highest_calorie['Kalori_kkal_per_hari'], 0) if highest_calorie is not None else '-',
+                        'note': 'Konsumsi energi harian tertinggi pada snapshot aktif',
+                        'detail': (
+                            f"Rata-rata lama sekolah tertinggi berada di {highest_school['Provinsi']} untuk konteks kualitas modal manusia."
+                            if highest_school is not None else 'Konsumsi pangan dilihat sebagai konteks kesejahteraan dasar rumah tangga.'
+                        ),
+                    },
+                ]
+                quality_of_life_cards = [card for card in quality_candidates if card.get('value') != '-']
+
+                trend_candidates = {
+                    'ipm': _trend_payload('IPM', label='IPM nasional rata-rata', formatter='number'),
+                    'poverty': _trend_payload('Pct_Penduduk_Miskin', label='Kemiskinan wilayah rata-rata', formatter='percent'),
+                    'formal': _trend_payload('Pct_Pekerja_Formal', label='Pekerja formal rata-rata', formatter='percent'),
+                    'school': _trend_payload('Rerata_Lama_Sekolah', label='Rata-rata lama sekolah', formatter='number'),
+                }
+                quality_trend_explorer = {key: value for key, value in trend_candidates.items() if value}
 
     context = {
         'inflasi_pred': float(inflasi_pred) if inflasi_pred else 0.0,
@@ -916,6 +1263,13 @@ def landing_page(request):
         'ump_data': json.dumps(ump_data),
         'pdrb_data': json.dumps(pdrb_data),
         'pie_data': json.dumps(pie_data),
+        'regional_snapshot_cards': regional_snapshot_cards,
+        'regional_snapshot_brief': regional_snapshot_brief,
+        'regional_metric_explorer_json': json.dumps(regional_metric_explorer),
+        'structural_insight_cards': structural_insight_cards,
+        'quality_of_life_cards': quality_of_life_cards,
+        'quality_trend_explorer_json': json.dumps(quality_trend_explorer),
+        'dashboard_snapshot_year': dashboard_snapshot_year,
     }
     return render(request, 'predictions/landing.html', context)
 
@@ -1337,8 +1691,23 @@ def api_all_metrics_latest(request):
         provincial_df = df[df['Provinsi'] != 'Indonesia']
         selected_rows = provincial_df[provincial_df['Tahun'] == selected_year]
 
-        metrics = [TARGET_COLUMN, NOMINAL_TARGET_COLUMN, 'UMP', 'PDRB_HargaKonstan', 'TPT', 'IPM', 'Gini_Rasio', 
-                   'Pct_Penduduk_Miskin', 'Inflasi_Rata_Tahunan']
+        metrics = [
+            TARGET_COLUMN,
+            NOMINAL_TARGET_COLUMN,
+            'UMP',
+            'PDRB_HargaKonstan',
+            'PDRB_HargaBerlaku',
+            'TPT',
+            'TPAK',
+            'IPM',
+            'Gini_Rasio',
+            'Pct_Penduduk_Miskin',
+            'Garis_Kemiskinan',
+            'NTP',
+            'Pct_Sanitasi_Layak',
+            'Rerata_Lama_Sekolah',
+            'Inflasi_Rata_Tahunan',
+        ]
         available = [m for m in metrics if m in selected_rows.columns]
         
         result = {}

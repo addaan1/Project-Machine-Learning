@@ -233,7 +233,32 @@ class GuideAndDashboardTests(TestCase):
         self.assertNotContains(response, "bahasa yang lebih santai")
         self.assertEqual(response.context["province_count"], 38)
         self.assertContains(response, "Model utama")
+        self.assertContains(response, "Forecast inflasi aktif")
+        self.assertContains(response, "Cakupan wilayah")
+        self.assertContains(response, "Status sumber data")
+        self.assertContains(response, "Snapshot wilayah terbaru")
+        self.assertContains(response, "memimpin proksi daya beli")
+        self.assertContains(response, "Explorer indikator wilayah")
+        self.assertContains(response, 'id="regionalSnapshotChart"')
+        self.assertContains(response, "Struktur ekonomi wilayah")
+        self.assertContains(response, "Kualitas hidup dan akses dasar")
+        self.assertContains(response, "Explorer tren 2021–2025")
+        self.assertContains(response, 'id="qualityTrendChart"')
+        self.assertGreaterEqual(len(response.context.get("regional_snapshot_cards", [])), 2)
+        self.assertIsNotNone(response.context.get("regional_snapshot_brief"))
+        self.assertIn("spending", response.context.get("regional_metric_explorer_json", ""))
+        self.assertGreaterEqual(len(response.context.get("structural_insight_cards", [])), 3)
+        self.assertGreaterEqual(len(response.context.get("quality_of_life_cards", [])), 2)
+        self.assertIn("ipm", response.context.get("quality_trend_explorer_json", ""))
+        self.assertNotContains(response, "Pisahkan panduan pembacaan indikator dan panduan teknis dalam satu halaman.")
         self.assertIn(reverse("guide"), html)
+
+    def test_base_layout_no_longer_renders_right_profile_badge(self):
+        response = self.client.get(reverse("landing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'class="user-profile"')
+        self.assertNotContains(response, '>EC<')
 
     def test_home_uses_actual_province_count_without_indonesia_aggregate(self):
         response = self.client.get(reverse("home"))
@@ -350,3 +375,20 @@ class EconomicMapPageTests(TestCase):
         self.assertIn("coverage_total", data)
         self.assertIn("missing_provinces", data)
         self.assertLessEqual(data["coverage_count"], data["coverage_total"])
+        for field in [
+            "TPAK",
+            "PDRB_HargaBerlaku",
+            "Garis_Kemiskinan",
+            "NTP",
+            "Pct_Sanitasi_Layak",
+            "Rerata_Lama_Sekolah",
+        ]:
+            self.assertIn(field, sample_row)
+
+    def test_map_page_shows_curated_metric_groups(self):
+        response = self.client.get(reverse("map"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Kesejahteraan")
+        self.assertContains(response, "Pasar kerja & ekonomi")
+        self.assertContains(response, "Kualitas hidup & struktur sosial")

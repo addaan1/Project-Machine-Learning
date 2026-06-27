@@ -8,26 +8,26 @@
     --bg-panel: #F8F9FB;
     --bg-card: #FFFFFF;
     --bg-elevated: #F1F3F6;
-    --bg-hover: rgba(41, 98, 255, 0.06);
+    --bg-hover: rgba(37, 81, 217, 0.06);
 
     /* Accent Colors (TradingView-inspired) */
-    --accent-primary: #2962FF;
-    --accent-primary-hover: #1E53E5;
-    --accent-primary-dim: rgba(41, 98, 255, 0.1);
-    --accent-primary-glow: rgba(41, 98, 255, 0.3);
+    --accent-primary: #2551D9;
+    --accent-primary-hover: #1C43BF;
+    --accent-primary-dim: rgba(37, 81, 217, 0.12);
+    --accent-primary-glow: rgba(37, 81, 217, 0.28);
 
-    --accent-secondary: #26A69A;
-    --accent-tertiary: #AB47BC;
-    --accent-warning: #FFB300;
-    --accent-info: #00BCD4;
+    --accent-secondary: #119D90;
+    --accent-tertiary: #7A5AF8;
+    --accent-warning: #F59E0B;
+    --accent-info: #0EA5E9;
 
     /* Status Colors */
-    --positive: #26A69A;
-    --positive-dim: rgba(38, 166, 154, 0.1);
+    --positive: #119D90;
+    --positive-dim: rgba(17, 157, 144, 0.12);
     --negative: #EF5350;
     --negative-dim: rgba(239, 83, 80, 0.1);
-    --warning: #FFB300;
-    --warning-dim: rgba(255, 179, 0, 0.1);
+    --warning: #F59E0B;
+    --warning-dim: rgba(245, 158, 11, 0.14);
     --neutral: #9598A1;
 
     /* Text */
@@ -86,10 +86,10 @@ body {
 
 .logo-icon {
     width: 36px; height: 36px;
-    background: linear-gradient(135deg, #2962FF 0%, #00BCD4 100%);
+    background: linear-gradient(135deg, #2551D9 0%, #14B8A6 100%);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(41, 98, 255, 0.25);
+    box-shadow: 0 2px 8px rgba(37, 81, 217, 0.22);
     color: #FFFFFF;
     flex-shrink: 0;
 }
@@ -126,33 +126,9 @@ body {
     color: #FFFFFF;
     background-color: var(--accent-primary);
     font-weight: 600;
-    box-shadow: 0 2px 6px rgba(41, 98, 255, 0.3);
+    box-shadow: 0 2px 6px rgba(37, 81, 217, 0.26);
 }
 .nav-links li.active a svg { opacity: 1; stroke: #FFFFFF; color: #FFFFFF; }
-
-/* Right side - search, notifications, user */
-.header-right { display: flex; align-items: center; gap: 12px; }
-
-.user-profile {
-    display: flex; align-items: center; gap: 10px;
-    padding: 4px 12px 4px 4px;
-    border-radius: 24px; cursor: pointer;
-    transition: background 0.15s;
-    border: 1px solid var(--border-color);
-}
-.user-profile:hover { background: var(--bg-hover); border-color: var(--border-hover); }
-
-.avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: linear-gradient(135deg, #2962FF, #AB47BC);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 11px;
-    box-shadow: 0 2px 4px rgba(41, 98, 255, 0.2);
-}
-
-.user-info { display: flex; flex-direction: column; line-height: 1.2; }
-.user-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
-.user-role { font-size: 10px; color: var(--text-secondary); }
 
 /* =================================================================
    MAIN CONTENT - Bright White Background
@@ -180,7 +156,7 @@ body {
 }
 .page-title-area h1::before {
     content: ''; width: 4px; height: 18px;
-    background: linear-gradient(180deg, #2962FF, #00BCD4);
+    background: linear-gradient(180deg, #2551D9, #14B8A6);
     border-radius: 2px;
     flex-shrink: 0;
 }
@@ -258,7 +234,7 @@ body {
 
 .btn-primary {
     background: var(--accent-primary); color: #fff;
-    box-shadow: 0 1px 3px rgba(41, 98, 255, 0.3);
+    box-shadow: 0 1px 3px rgba(37, 81, 217, 0.26);
 }
 .btn-primary:hover {
     background: var(--accent-primary-hover);
@@ -473,12 +449,12 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
     background: var(--accent-primary); cursor: pointer;
-    box-shadow: 0 2px 6px rgba(41, 98, 255, 0.3); border: 2px solid #FFFFFF;
+    box-shadow: 0 2px 6px rgba(37, 81, 217, 0.26); border: 2px solid #FFFFFF;
 }
 input[type="range"]::-moz-range-thumb {
     width: 18px; height: 18px; border-radius: 50%;
     background: var(--accent-primary); cursor: pointer;
-    box-shadow: 0 2px 6px rgba(41, 98, 255, 0.3); border: 2px solid #FFFFFF;
+    box-shadow: 0 2px 6px rgba(37, 81, 217, 0.26); border: 2px solid #FFFFFF;
 }
 .sim-right { flex: 1; display: flex; align-items: center; }
 .result-box {
