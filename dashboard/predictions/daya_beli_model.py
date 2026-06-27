@@ -36,6 +36,15 @@ BASE_NUMERIC_FEATURES = [
     "GDP_PerCapita_PPP",
     "Pct_Unemployment_WB",
     "Poverty_Headcount_Pct",
+    # NEW v5
+    "Indeks_Kedalaman_Kemiskinan",
+    "Total_Kendaraan",
+    "NTP",
+    "Pct_Kepemilikan_HP",
+    "Pct_Sanitasi_Layak",
+    "Pct_Pekerja_Formal",
+    "Rerata_Lama_Sekolah",
+    "Realisasi_Investasi_PMDN",
 ]
 
 DERIVED_NUMERIC_FEATURES = [
@@ -74,6 +83,16 @@ DEPLOYMENT_NUMERIC_FEATURE_CANDIDATES = [
     "GDP_PerCapita_PPP",
     "Pct_Unemployment_WB",
     "Poverty_Headcount_Pct",
+    # NEW v5
+    "Indeks_Kedalaman_Kemiskinan",
+    "Total_Kendaraan",
+    "NTP",
+    "Pct_Kepemilikan_HP",
+    "Pct_Sanitasi_Layak",
+    "Pct_Pekerja_Formal",
+    "Rerata_Lama_Sekolah",
+    "Realisasi_Investasi_PMDN",
+    # Derived
     "Year_Index",
     "Inflation_Deflator",
     "Real_UMP",

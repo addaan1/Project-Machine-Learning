@@ -118,7 +118,7 @@ def _to_float_id(val) -> float:
         s = str(val).strip()
         if s in ("-", "", "nan", "None", "-"):
             return np.nan
-        s = s.replace("%", "").replace(" ", "")
+        s = s.replace("%", "").replace(" ", "").replace("(*)", "")
         # Format Indonesia: titik = ribuan, koma = desimal
         if "," in s and "." in s:
             s = s.replace(".", "").replace(",", ".")
@@ -129,6 +129,7 @@ def _to_float_id(val) -> float:
         return float(s)
     except Exception:
         return np.nan
+
 
 
 def _extract_year(filename: str):
@@ -1461,6 +1462,212 @@ def load_inflasi_kota_bulanan() -> pd.DataFrame:
     return pd.DataFrame()
 
 
+def load_indeks_kedalaman_kemiskinan() -> pd.DataFrame:
+    """Indeks Kedalaman Kemiskinan (P1) per Provinsi."""
+    print("  [+] Indeks Kedalaman Kemiskinan (P1)...", end=" ")
+    folder = "Indeks Kedalaman Kemiskinan (P1) Menurut Provinsi dan Daerah (Persen)"
+    files = glob.glob(os.path.join(BASE, folder, "*.xlsx"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_excel(f, header=None)
+            data = df.iloc[5:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            
+            val_sem1 = data.iloc[:, 7].apply(_to_float_id)
+            val_sem2 = data.iloc[:, 8].apply(_to_float_id)
+            val_tahunan = data.iloc[:, 9].apply(_to_float_id)
+            
+            final_val = val_tahunan.fillna((val_sem1 + val_sem2) / 2)
+            
+            data["Indeks_Kedalaman_Kemiskinan"] = final_val
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Indeks_Kedalaman_Kemiskinan"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_jumlah_kendaraan() -> pd.DataFrame:
+    """Jumlah Kendaraan Bermotor per Provinsi."""
+    print("  [+] Jumlah Kendaraan Bermotor...", end=" ")
+    folder = "Jumlah Kendaraan Bermotor Menurut Provinsi dan Jenis Kendaraan (unit)"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig')
+            df.rename(columns={df.columns[0]: "Provinsi", df.columns[-1]: "Total_Kendaraan"}, inplace=True)
+            df = df[~df["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA", "TOTAL"])]
+            df["Total_Kendaraan"] = df["Total_Kendaraan"].apply(_to_float_id)
+            df["Tahun"] = tahun
+            df["Provinsi"] = df["Provinsi"].apply(_normalize_prov)
+            records.append(df[["Provinsi", "Tahun", "Total_Kendaraan"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_ntp() -> pd.DataFrame:
+    """Nilai Tukar Petani (NTP) per Provinsi."""
+    print("  [+] NTP (Nilai Tukar Petani)...", end=" ")
+    folder = "NTP (Nilai Tukar Petani) menurut Provinsi"
+    files = glob.glob(os.path.join(BASE, folder, "*.xlsx"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_excel(f, header=None)
+            data = df.iloc[5:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            
+            monthly_vals = data.iloc[:, 1:13].map(_to_float_id)
+            mean_val = monthly_vals.mean(axis=1)
+            
+            data["NTP"] = mean_val
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "NTP"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_kepemilikan_hp() -> pd.DataFrame:
+    """Persentase Penduduk yang Menguasai Telepon Seluler per Provinsi."""
+    print("  [+] Persentase Kepemilikan Telepon Seluler...", end=" ")
+    folder = "Persentase Penduduk yang Memiliki Menguasai Telepon Seluler Menurut Provinsi dan Klasifikasi Daerah"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig', header=None)
+            data = df.iloc[4:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi", data.columns[3]: "Pct_Kepemilikan_HP"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            data["Pct_Kepemilikan_HP"] = data["Pct_Kepemilikan_HP"].apply(_to_float_id)
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Pct_Kepemilikan_HP"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_sanitasi_layak() -> pd.DataFrame:
+    """Persentase Rumah Tangga yang Memiliki Akses terhadap Sanitasi Layak per Provinsi."""
+    print("  [+] Persentase Rumah Tangga Akses Sanitasi Layak...", end=" ")
+    folder = "Persentase Rumah Tangga yang Memiliki Akses terhadap Sanitasi Layak Menurut Provinsi dan Klasifikasi Desa (Persen)"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig', header=None)
+            data = df.iloc[3:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi", data.columns[3]: "Pct_Sanitasi_Layak"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            data["Pct_Sanitasi_Layak"] = data["Pct_Sanitasi_Layak"].apply(_to_float_id)
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Pct_Sanitasi_Layak"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_pekerja_formal() -> pd.DataFrame:
+    """Persentase Tenaga Kerja Formal per Provinsi."""
+    print("  [+] Persentase Tenaga Kerja Formal...", end=" ")
+    folder = "Persentase Tenaga Kerja Formal Menurut Provinsi (Persen)"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig', header=None)
+            data = df.iloc[2:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi", data.columns[1]: "Pct_Pekerja_Formal"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            data["Pct_Pekerja_Formal"] = data["Pct_Pekerja_Formal"].apply(_to_float_id)
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Pct_Pekerja_Formal"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_rata_rata_lama_sekolah() -> pd.DataFrame:
+    """Rata-rata Lama Sekolah per Provinsi."""
+    print("  [+] Rata-rata Lama Sekolah...", end=" ")
+    folder = "Rata-rata Lama Sekolah (Tahun)"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig', header=None)
+            data = df.iloc[2:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi", data.columns[1]: "Rerata_Lama_Sekolah"}, inplace=True)
+            
+            data = data[data["Provinsi"].astype(str).str.strip().str.isupper() == True]
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            
+            data["Rerata_Lama_Sekolah"] = data["Rerata_Lama_Sekolah"].apply(_to_float_id)
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Rerata_Lama_Sekolah"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+def load_pmdn() -> pd.DataFrame:
+    """Realisasi Investasi PMDN per Provinsi (Milyar Rupiah)."""
+    print("  [+] Realisasi Investasi PMDN...", end=" ")
+    folder = "Realisasi Investasi Penanaman Modal Dalam Negeri Menurut Lokasi - Jumlah Investasi (Milyar Rupiah)"
+    files = glob.glob(os.path.join(BASE, folder, "*.csv"))
+    records = []
+    for f in sorted(files):
+        tahun = _extract_year(f)
+        if not tahun: continue
+        try:
+            df = pd.read_csv(f, encoding='utf-8-sig', header=None)
+            data = df.iloc[2:].copy()
+            data.rename(columns={data.columns[0]: "Provinsi", data.columns[1]: "Realisasi_Investasi_PMDN"}, inplace=True)
+            data = data[~data["Provinsi"].astype(str).str.strip().str.upper().isin(["PROVINSI", "", "INDONESIA"])]
+            data["Realisasi_Investasi_PMDN"] = data["Realisasi_Investasi_PMDN"].apply(_to_float_id)
+            data["Tahun"] = tahun
+            data["Provinsi"] = data["Provinsi"].apply(_normalize_prov)
+            records.append(data[["Provinsi", "Tahun", "Realisasi_Investasi_PMDN"]].dropna())
+        except Exception:
+            pass
+    df_out = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    print(f"{len(df_out)} baris, {df_out['Tahun'].nunique() if not df_out.empty else 0} tahun")
+    return df_out
+
+
 # ===========================================================================
 # [33] WORLD BANK API - Indikator Nasional (Auto-download)
 # ===========================================================================
@@ -1704,7 +1911,15 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
                           jumlah_penduduk=None, urbanisasi=None,
                           akses_air=None,
                           konsumsi_protein=None, jumlah_rumah_tangga=None,
-                          worldbank_nasional=None) -> pd.DataFrame:
+                          worldbank_nasional=None,
+                          indeks_kedalaman_kemiskinan=None,
+                          jumlah_kendaraan=None,
+                          ntp=None,
+                          kepemilikan_hp=None,
+                          sanitasi_layak=None,
+                          pekerja_formal=None,
+                          rerata_lama_sekolah=None,
+                          pmdn=None) -> pd.DataFrame:
     """
     Panel data provinsi × tahun:
     - Pengeluaran per Kapita (target Y)
@@ -1716,6 +1931,7 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
     - Jumlah Penduduk, Urbanisasi (NEW v4)
     - Kredit Konsumsi, Akses Air, Protein, Rumah Tangga (NEW v4)
     - World Bank indikator nasional (NEW v4)
+    - 8 Variabel Tambahan Baru v5: Kedalaman Kemiskinan, Kendaraan, NTP, HP, Sanitasi, Pekerja Formal, RLS, PMDN
     """
     print("\n▶ Membangun clean_daya_beli.csv ...")
 
@@ -1831,6 +2047,47 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
         panel = panel.merge(worldbank_nasional, on="Tahun", how="left")
         print(f"   [+] WorldBank_Nasional: ditambahkan ({len(worldbank_nasional)} baris)")
 
+    # --- DATASET BARU v5 (Tambahan manual) ---
+    # Indeks Kedalaman Kemiskinan
+    if indeks_kedalaman_kemiskinan is not None and not indeks_kedalaman_kemiskinan.empty:
+        panel = panel.merge(indeks_kedalaman_kemiskinan, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Indeks_Kedalaman_Kemiskinan: ditambahkan ({len(indeks_kedalaman_kemiskinan)} baris)")
+
+    # Jumlah Kendaraan
+    if jumlah_kendaraan is not None and not jumlah_kendaraan.empty:
+        panel = panel.merge(jumlah_kendaraan, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Total_Kendaraan: ditambahkan ({len(jumlah_kendaraan)} baris)")
+
+    # NTP
+    if ntp is not None and not ntp.empty:
+        panel = panel.merge(ntp, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] NTP: ditambahkan ({len(ntp)} baris)")
+
+    # Kepemilikan HP
+    if kepemilikan_hp is not None and not kepemilikan_hp.empty:
+        panel = panel.merge(kepemilikan_hp, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Pct_Kepemilikan_HP: ditambahkan ({len(kepemilikan_hp)} baris)")
+
+    # Sanitasi Layak
+    if sanitasi_layak is not None and not sanitasi_layak.empty:
+        panel = panel.merge(sanitasi_layak, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Pct_Sanitasi_Layak: ditambahkan ({len(sanitasi_layak)} baris)")
+
+    # Pekerja Formal
+    if pekerja_formal is not None and not pekerja_formal.empty:
+        panel = panel.merge(pekerja_formal, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Pct_Pekerja_Formal: ditambahkan ({len(pekerja_formal)} baris)")
+
+    # Rerata Lama Sekolah
+    if rerata_lama_sekolah is not None and not rerata_lama_sekolah.empty:
+        panel = panel.merge(rerata_lama_sekolah, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Rerata_Lama_Sekolah: ditambahkan ({len(rerata_lama_sekolah)} baris)")
+
+    # PMDN
+    if pmdn is not None and not pmdn.empty:
+        panel = panel.merge(pmdn, on=["Provinsi", "Tahun"], how="left")
+        print(f"   [+] Realisasi_Investasi_PMDN: ditambahkan ({len(pmdn)} baris)")
+
     # Inflasi rata-rata tahunan
     panel = panel.merge(inflasi_tahunan, on="Tahun", how="left")
 
@@ -1845,7 +2102,10 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
     all_year_min = tahun_min_default
     all_year_max = tahun_max_default
     for new_df in [gini, ipm, garis_kemiskinan, jumlah_penduduk, urbanisasi,
-                   akses_air, konsumsi_protein, jumlah_rumah_tangga]:
+                   akses_air, konsumsi_protein, jumlah_rumah_tangga,
+                   indeks_kedalaman_kemiskinan, jumlah_kendaraan, ntp,
+                   kepemilikan_hp, sanitasi_layak, pekerja_formal,
+                   rerata_lama_sekolah, pmdn]:
         if new_df is not None and not new_df.empty and 'Tahun' in new_df.columns:
             try:
                 ymin = int(new_df['Tahun'].min())
@@ -1895,6 +2155,10 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
         # BARU v4 - World Bank nasional
         "PPP_Factor", "Inflasi_WB_Annual", "GDP_PerCapita_PPP",
         "Pct_Unemployment_WB", "Poverty_Headcount_Pct",
+        # BARU v5 - tambahan manual
+        "Indeks_Kedalaman_Kemiskinan", "Total_Kendaraan", "NTP",
+        "Pct_Kepemilikan_HP", "Pct_Sanitasi_Layak", "Pct_Pekerja_Formal",
+        "Rerata_Lama_Sekolah", "Realisasi_Investasi_PMDN",
     ]
     col_order = [c for c in col_order if c in panel.columns]
     panel = panel[col_order].sort_values(["Tahun", "Provinsi"]).reset_index(drop=True)
@@ -1908,6 +2172,7 @@ def build_daya_beli_panel(inflasi, ump, pengeluaran,
     print(f"   ✓ Kolom: {list(panel.columns)}")
     print(f"   ✓ Disimpan → {out_path}")
     return panel
+
 
 
 # ===========================================================================
@@ -1985,6 +2250,17 @@ def main():
     print("\n[WORLD BANK API - Nasional]")
     worldbank_nasional = load_worldbank_nasional()       # [25]
 
+    # --- LOKAL BARU v5 (tambahan manual download) ---
+    print("\n[LOKAL BARU v5 - Tambahan Manual]")
+    indeks_kedalaman_kemiskinan = load_indeks_kedalaman_kemiskinan()
+    jumlah_kendaraan  = load_jumlah_kendaraan()
+    ntp               = load_ntp()
+    kepemilikan_hp    = load_kepemilikan_hp()
+    sanitasi_layak    = load_sanitasi_layak()
+    pekerja_formal    = load_pekerja_formal()
+    rerata_lama_sekolah = load_rata_rata_lama_sekolah()
+    pmdn              = load_pmdn()
+
     # Build output files
     print("\n[BUILD]")
     ts    = build_inflasi_ts(inflasi, ihk, bi_rate, usd_idr,
@@ -2003,7 +2279,15 @@ def main():
                                     akses_air=akses_air,
                                     konsumsi_protein=konsumsi_protein,
                                     jumlah_rumah_tangga=jumlah_rt,
-                                    worldbank_nasional=worldbank_nasional)
+                                    worldbank_nasional=worldbank_nasional,
+                                    indeks_kedalaman_kemiskinan=indeks_kedalaman_kemiskinan,
+                                    jumlah_kendaraan=jumlah_kendaraan,
+                                    ntp=ntp,
+                                    kepemilikan_hp=kepemilikan_hp,
+                                    sanitasi_layak=sanitasi_layak,
+                                    pekerja_formal=pekerja_formal,
+                                    rerata_lama_sekolah=rerata_lama_sekolah,
+                                    pmdn=pmdn)
 
     # Ringkasan
     print_summary(ts, "clean_inflasi_ts.csv")
