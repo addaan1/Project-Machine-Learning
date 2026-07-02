@@ -1,30 +1,17 @@
 {
   "1m": [
     {
-      "id": "sarimax",
-      "name": "SARIMAX",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3194,
-        "rmse": 0.4647,
-        "smape": 108.94,
-        "n_test": 24
-      },
-      "point_forecast": 0.3609
-    },
-    {
       "id": "arima",
       "name": "ARIMA",
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3396,
-        "rmse": 0.4861,
-        "smape": 106.94,
+        "mae": 0.3316,
+        "rmse": 0.4812,
+        "smape": 101.12,
         "n_test": 24
       },
-      "point_forecast": 0.2366
+      "point_forecast": 0.3569
     },
     {
       "id": "ensemble",
@@ -32,30 +19,17 @@
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3433,
-        "rmse": 0.4931,
-        "smape": 110.1,
+        "mae": 0.3393,
+        "rmse": 0.4904,
+        "smape": 101.51,
         "n_test": 24
       },
-      "point_forecast": 0.3614,
+      "point_forecast": 0.3548,
       "weights": {
-        "arima": 0.3446,
-        "sarimax": 0.3663,
-        "prophet": 0.2891
+        "arima": 0.9609,
+        "sarimax": 0.0356,
+        "prophet": 0.0035
       }
-    },
-    {
-      "id": "prophet",
-      "name": "Prophet",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.4048,
-        "rmse": 0.5997,
-        "smape": 122.14,
-        "n_test": 24
-      },
-      "point_forecast": 0.5106
     },
     {
       "id": "naive",
@@ -63,38 +37,52 @@
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.4538,
-        "rmse": 0.6797,
-        "smape": 122.01,
+        "mae": 0.4583,
+        "rmse": 0.6804,
+        "smape": 120.08,
         "n_test": 24
       },
-      "point_forecast": 0.28
+      "point_forecast": 0.44
+    },
+    {
+      "id": "sarimax",
+      "name": "SARIMAX",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 8.9594,
+        "rmse": 42.4594,
+        "smape": 101.71,
+        "n_test": 24
+      },
+      "point_forecast": 0.2686
+    },
+    {
+      "id": "prophet",
+      "name": "Prophet",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 90.5555,
+        "rmse": 441.7408,
+        "smape": 111.64,
+        "n_test": 24
+      },
+      "point_forecast": 0.6601
     },
     {
       "id": "bilstm",
       "name": "Bi-LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.3959,
-        "rmse": 0.5187,
-        "smape": 110.64,
-        "n_test": 24
-      },
-      "point_forecast": 0.305
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "lstm",
       "name": "LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.5131,
-        "rmse": 0.6251,
-        "smape": 117.1,
-        "n_test": 24
-      },
-      "point_forecast": 0.5859
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "garch",
@@ -106,61 +94,17 @@
   ],
   "3m": [
     {
-      "id": "sarimax",
-      "name": "SARIMAX",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3537,
-        "rmse": 0.4809,
-        "smape": 112.64,
-        "n_test": 24
-      },
-      "point_forecast": 0.362
-    },
-    {
-      "id": "ensemble",
-      "name": "Ensemble",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3594,
-        "rmse": 0.5122,
-        "smape": 114.5,
-        "n_test": 24
-      },
-      "point_forecast": 0.3235,
-      "weights": {
-        "arima": 0.3327,
-        "sarimax": 0.3512,
-        "prophet": 0.3161
-      }
-    },
-    {
       "id": "arima",
       "name": "ARIMA",
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3735,
-        "rmse": 0.5099,
-        "smape": 111.1,
+        "mae": 0.3619,
+        "rmse": 0.5027,
+        "smape": 104.85,
         "n_test": 24
       },
-      "point_forecast": 0.2528
-    },
-    {
-      "id": "prophet",
-      "name": "Prophet",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.393,
-        "rmse": 0.5942,
-        "smape": 115.63,
-        "n_test": 24
-      },
-      "point_forecast": 0.3551
+      "point_forecast": 0.3222
     },
     {
       "id": "naive",
@@ -168,38 +112,70 @@
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.5117,
-        "rmse": 0.6925,
-        "smape": 131.37,
+        "mae": 0.4879,
+        "rmse": 0.6816,
+        "smape": 123.33,
         "n_test": 24
       },
-      "point_forecast": 0.28
+      "point_forecast": 0.44
+    },
+    {
+      "id": "ensemble",
+      "name": "Ensemble",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 0.7981,
+        "rmse": 1.6018,
+        "smape": 114.9,
+        "n_test": 24
+      },
+      "point_forecast": 0.3203,
+      "weights": {
+        "arima": 0.9813,
+        "sarimax": 0.0174,
+        "prophet": 0.0013
+      }
+    },
+    {
+      "id": "sarimax",
+      "name": "SARIMAX",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 20.4084,
+        "rmse": 59.4096,
+        "smape": 128.24,
+        "n_test": 24
+      },
+      "point_forecast": 0.2186
+    },
+    {
+      "id": "prophet",
+      "name": "Prophet",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 276.0098,
+        "rmse": 779.7387,
+        "smape": 123.26,
+        "n_test": 24
+      },
+      "point_forecast": 0.2329
     },
     {
       "id": "bilstm",
       "name": "Bi-LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.3912,
-        "rmse": 0.527,
-        "smape": 142.04,
-        "n_test": 24
-      },
-      "point_forecast": 0.0937
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "lstm",
       "name": "LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.7686,
-        "rmse": 0.8668,
-        "smape": 132.17,
-        "n_test": 24
-      },
-      "point_forecast": 0.9174
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "garch",
@@ -211,61 +187,17 @@
   ],
   "6m": [
     {
-      "id": "sarimax",
-      "name": "SARIMAX",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3604,
-        "rmse": 0.4838,
-        "smape": 113.17,
-        "n_test": 24
-      },
-      "point_forecast": 0.4052
-    },
-    {
-      "id": "ensemble",
-      "name": "Ensemble",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3612,
-        "rmse": 0.5132,
-        "smape": 114.07,
-        "n_test": 24
-      },
-      "point_forecast": 0.3526,
-      "weights": {
-        "arima": 0.3318,
-        "sarimax": 0.3452,
-        "prophet": 0.323
-      }
-    },
-    {
       "id": "arima",
       "name": "ARIMA",
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3749,
-        "rmse": 0.5122,
-        "smape": 110.01,
+        "mae": 0.3624,
+        "rmse": 0.5048,
+        "smape": 103.37,
         "n_test": 24
       },
-      "point_forecast": 0.3088
-    },
-    {
-      "id": "prophet",
-      "name": "Prophet",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.385,
-        "rmse": 0.5937,
-        "smape": 107.21,
-        "n_test": 24
-      },
-      "point_forecast": 0.3414
+      "point_forecast": 0.2816
     },
     {
       "id": "naive",
@@ -273,38 +205,70 @@
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.5846,
-        "rmse": 0.7111,
-        "smape": 157.17,
+        "mae": 0.5725,
+        "rmse": 0.7052,
+        "smape": 150.38,
         "n_test": 24
       },
-      "point_forecast": 0.28
+      "point_forecast": 0.44
+    },
+    {
+      "id": "ensemble",
+      "name": "Ensemble",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 0.7246,
+        "rmse": 1.0785,
+        "smape": 132.83,
+        "n_test": 24
+      },
+      "point_forecast": 0.2817,
+      "weights": {
+        "arima": 0.9901,
+        "sarimax": 0.0093,
+        "prophet": 0.0007
+      }
+    },
+    {
+      "id": "sarimax",
+      "name": "SARIMAX",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 38.7532,
+        "rmse": 86.8455,
+        "smape": 137.4,
+        "n_test": 24
+      },
+      "point_forecast": 0.2666
+    },
+    {
+      "id": "prophet",
+      "name": "Prophet",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 539.7506,
+        "rmse": 1082.6881,
+        "smape": 126.12,
+        "n_test": 24
+      },
+      "point_forecast": 0.6896
     },
     {
       "id": "bilstm",
       "name": "Bi-LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.3884,
-        "rmse": 0.5265,
-        "smape": 125.44,
-        "n_test": 24
-      },
-      "point_forecast": 0.0788
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "lstm",
       "name": "LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.4872,
-        "rmse": 0.5796,
-        "smape": 123.2,
-        "n_test": 24
-      },
-      "point_forecast": 0.7227
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "garch",
@@ -316,61 +280,17 @@
   ],
   "12m": [
     {
-      "id": "sarimax",
-      "name": "SARIMAX",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3605,
-        "rmse": 0.4862,
-        "smape": 112.61,
-        "n_test": 24
-      },
-      "point_forecast": 0.4039
-    },
-    {
-      "id": "ensemble",
-      "name": "Ensemble",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.3645,
-        "rmse": 0.5148,
-        "smape": 112.78,
-        "n_test": 24
-      },
-      "point_forecast": 0.3362,
-      "weights": {
-        "arima": 0.3332,
-        "sarimax": 0.3536,
-        "prophet": 0.3133
-      }
-    },
-    {
       "id": "arima",
       "name": "ARIMA",
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3826,
-        "rmse": 0.5155,
-        "smape": 109.4,
+        "mae": 0.369,
+        "rmse": 0.5074,
+        "smape": 102.69,
         "n_test": 24
       },
-      "point_forecast": 0.3069
-    },
-    {
-      "id": "prophet",
-      "name": "Prophet",
-      "status": "ok",
-      "metric_source": "walk_forward",
-      "metrics": {
-        "mae": 0.407,
-        "rmse": 0.5978,
-        "smape": 127.28,
-        "n_test": 24
-      },
-      "point_forecast": 0.291
+      "point_forecast": 0.2946
     },
     {
       "id": "naive",
@@ -378,38 +298,70 @@
       "status": "ok",
       "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.4804,
-        "rmse": 0.6186,
-        "smape": 135.63,
+        "mae": 0.4817,
+        "rmse": 0.6191,
+        "smape": 130.6,
         "n_test": 24
       },
-      "point_forecast": 0.28
+      "point_forecast": 0.44
     },
     {
-      "id": "lstm",
-      "name": "LSTM",
+      "id": "ensemble",
+      "name": "Ensemble",
       "status": "ok",
-      "metric_source": "chronological_holdout",
+      "metric_source": "walk_forward",
       "metrics": {
-        "mae": 0.3792,
-        "rmse": 0.514,
-        "smape": 112.16,
+        "mae": 0.8898,
+        "rmse": 1.3683,
+        "smape": 119.75,
         "n_test": 24
       },
-      "point_forecast": 0.1723
+      "point_forecast": 0.2943,
+      "weights": {
+        "arima": 0.9933,
+        "sarimax": 0.006,
+        "prophet": 0.0007
+      }
+    },
+    {
+      "id": "sarimax",
+      "name": "SARIMAX",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 60.9263,
+        "rmse": 129.1091,
+        "smape": 133.65,
+        "n_test": 24
+      },
+      "point_forecast": 0.2408
+    },
+    {
+      "id": "prophet",
+      "name": "Prophet",
+      "status": "ok",
+      "metric_source": "walk_forward",
+      "metrics": {
+        "mae": 505.8734,
+        "rmse": 1015.4114,
+        "smape": 147.23,
+        "n_test": 24
+      },
+      "point_forecast": 0.4213
     },
     {
       "id": "bilstm",
       "name": "Bi-LSTM",
-      "status": "ok",
+      "status": "skipped",
       "metric_source": "chronological_holdout",
-      "metrics": {
-        "mae": 0.4002,
-        "rmse": 0.5189,
-        "smape": 112.9,
-        "n_test": 24
-      },
-      "point_forecast": 0.5323
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
+    },
+    {
+      "id": "lstm",
+      "name": "LSTM",
+      "status": "skipped",
+      "metric_source": "chronological_holdout",
+      "reason": "Input and parameter tensors are not at the same device, found input tensor at cpu and parameter tensor at cuda:0"
     },
     {
       "id": "garch",
